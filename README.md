@@ -132,11 +132,3 @@ The assembly program covers:
 - The game is won when every safe cell has been revealed.
 
 ---
-
-## 👥 Contributors
-
-| Name               |  GitHub  |
-|--------------------|----------|
-| Liam Huang         |    -     |
-| Alexander Kholodov |    -     |
-| Raymond Portilla   | rmandors |
