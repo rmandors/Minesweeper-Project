@@ -130,5 +130,3 @@ The assembly program covers:
 - Each safe cell displays the count of mines in its 8 neighboring cells (0–8).
 - Flags mark suspected mines and prevent accidental reveals.
 - The game is won when every safe cell has been revealed.
-
----
