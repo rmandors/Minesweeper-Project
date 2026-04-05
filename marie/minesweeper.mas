@@ -7,15 +7,13 @@
 
 ORG 100
 
-/Jump    PlayGame
-
 
 Load    DisplayStart
 Store   CurrentPos
 
 
 DisplayInitialMap,	Load    	ColorHiddenCell
-       				StoreI  	CurrentPos 
+       				StoreI  	CurrentPos			/ Fill cell 
 			
 					Load  	    CurrentPos
         			Subt    	DisplayEnd
@@ -25,7 +23,7 @@ DisplayInitialMap,	Load    	ColorHiddenCell
 
         			Load    	CurrentPos
         			Add     	One
-        			Store   	CurrentPos
+        			Store   	CurrentPos			/ Next cell
 
         			Jump    	DisplayInitialMap
 
@@ -42,7 +40,7 @@ AskForInputs,	Input
 				Store	ActionInput
 				JnS		ValidateAction
 
-				Jump	PlayAction
+				Jump	PlayAction				/ If inputs are valid, do action
 
 
 ValidateRow,	HEX			000
@@ -87,9 +85,60 @@ ValidateAction,	HEX			000
     			JumpI 		ValidateAction
 
 
-PlayAction,	Output
-	
-GameOver,	Halt
+PlayAction,	Load		One
+			Store		RowCounter				/ Reset row counter
+			
+			JnS			MoveToInputCoords		/ Compute position
+
+			Load		ActionInput
+			Subt		One
+			SkipCond	400						
+			Jump		ToggleFlag				/ Action = 2, then toggle flag
+
+			Jump		RevealCell				/ Action = 1, then reveal cell
+
+
+MoveToInputCoords,	HEX	000
+
+MoveToColumn,	Load	DisplayStart
+				Add		ColumnInput
+				Subt	One
+				Store	CurrentPos				/ Move to column
+
+LoopRow,	Load		RowInput
+			Subt		RowCounter
+			SkipCond	800          			
+			JumpI		MoveToInputCoords   	/ Done rows
+
+			Load		CurrentPos
+			Add			DisplayWidth	
+			Store		CurrentPos				/ Move down
+
+			Load		RowCounter 
+			Add			One
+			Store		RowCounter
+
+			Jump		LoopRow
+
+
+ToggleFlag, LoadI   	CurrentPos      
+            Subt    	ColorFlag
+            SkipCond 	400            
+            Jump    	PlaceFlag				/ Not flagged
+
+            Load    	ColorHiddenCell
+            StoreI  	CurrentPos				/ Remove flag
+            Jump    	AskForInputs
+
+
+PlaceFlag,  Load    	ColorFlag
+            StoreI  	CurrentPos				/ Set flag
+            Jump    	AskForInputs
+
+
+RevealCell,	Output		/ Placeholder		
+
+GameOver,	Halt		/ Placeholder		
 
 
 RowInput,			HEX 000
@@ -97,8 +146,10 @@ ColumnInput,		HEX 000
 ActionInput,		HEX 000
 
 CurrentPos,         HEX 000
-DisplayStart,       HEX F00
-DisplayEnd,         HEX FFF
+RowCounter,			HEX 000
+
+DisplayStart,       HEX F00		/ Display's first cell
+DisplayEnd,         HEX FFF		/ Display's last cell
 DisplayWidth,		HEX 010
 
 Color0,             HEX 6318	/ Light Grey
