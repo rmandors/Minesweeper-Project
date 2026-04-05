@@ -1,0 +1,119 @@
+/ Organizacion de Computadores
+/ NRC: 2701
+/ Proyecto Final: Minesweeper en MARIE
+/ Integrantes: - Liam Huang
+/ 			   - Alexander Kholodov
+/			   - Raymond Portilla
+
+ORG 100
+
+/Jump    PlayGame
+
+
+Load    DisplayStart
+Store   CurrentPos
+
+
+DisplayInitialMap,	Load    	ColorHiddenCell
+       				StoreI  	CurrentPos 
+			
+					Load  	    CurrentPos
+        			Subt    	DisplayEnd
+			
+        			Skipcond 	000
+       				Jump    	AskForInputs      		
+
+        			Load    	CurrentPos
+        			Add     	One
+        			Store   	CurrentPos
+
+        			Jump    	DisplayInitialMap
+
+					
+AskForInputs,	Input	
+				Store	RowInput
+				JnS	    ValidateRow
+				
+				Input
+				Store	ColumnInput
+				JnS		ValidateColumn
+
+				Input
+				Store	ActionInput
+				JnS		ValidateAction
+
+				Jump	PlayAction
+
+
+ValidateRow,	HEX			000
+			    Load 		RowInput
+  				SkipCond 	800					/ Check for RowInput >= 1       	
+    			Jump 		AskForInputs	
+
+			    Load 		RowInput
+				Subt		One
+ 			    Subt 		DisplayWidth   
+   			    SkipCond 	000					/ Check for RowInput <= 16           
+    			Jump 		AskForInputs
+
+    			JumpI 		ValidateRow
+
+
+ValidateColumn,	HEX			000
+			    Load 		ColumnInput			  
+  				SkipCond 	800 				/ Check for ColumnInput >= 1       
+    			Jump 		AskForInputs
+
+			    Load 		ColumnInput
+				Subt		One
+ 			    Subt 		DisplayWidth   
+   			    SkipCond 	000  				/ Check for ColumnInput <= 16      
+    			Jump 		AskForInputs
+
+    			JumpI 		ValidateColumn
+
+
+ValidateAction,	HEX			000
+			    Load 		ActionInput
+  				SkipCond 	800   				/ Check for ActionInput >= 1    
+    			Jump 		AskForInputs
+
+			    Load 		ActionInput
+				Subt		One
+ 			    Subt 		Two   
+   			    SkipCond 	000   				/ Check for ActionInput <= 2      
+    			Jump 		AskForInputs
+
+    			JumpI 		ValidateAction
+
+
+PlayAction,	Output
+	
+GameOver,	Halt
+
+
+RowInput,			HEX 000
+ColumnInput,		HEX 000
+ActionInput,		HEX 000
+
+CurrentPos,         HEX 000
+DisplayStart,       HEX F00
+DisplayEnd,         HEX FFF
+DisplayWidth,		HEX 010
+
+Color0,             HEX 6318	/ Light Grey
+Color1,             HEX 001F	/ Blue 
+Color2,             HEX 03E0	/ Green
+Color3,             HEX 7C00	/ Red
+Color4,             HEX 0010	/ Dark Blue
+Color5,             HEX 4000	/ Dark Red
+Color6,             HEX 03FF	/ Cyan
+Color7,             HEX 4010	/ Violet
+Color8,             HEX 7FFF	/ White
+
+ColorHiddenCell,    HEX 4210	/ Dark Grey
+ColorFlag,          HEX 7FE0	/ Yellow
+ColorMine,          HEX 0000	/ Black
+
+One,                HEX 001
+Two,				HEX 002
