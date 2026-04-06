@@ -7,7 +7,7 @@ class MinesweeperBoardGenerator:
     
     BOARD_SIZE = 16
     TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE  # 256 celdas
-    DEFAULT_MINES = 40
+    DEFAULT_MINES = 2
     
     # Valores de representación
     MINE = -1
@@ -151,8 +151,8 @@ class MinesweeperBoardGenerator:
 def main():
     """Función principal para generar el tablero"""
     
-    # Crear generador
-    generator = MinesweeperBoardGenerator(num_mines=40, seed=None)
+    # Crear generador (usa DEFAULT_MINES por defecto)
+    generator = MinesweeperBoardGenerator(seed=None)
     
     # Generar tablero
     board = generator.generate()
