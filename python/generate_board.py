@@ -114,6 +114,8 @@ class MinesweeperBoardGenerator:
         
         with open(filename, 'w') as f:
             # Cada fila
+            f.write(f"/SafeCellsLeft, {256 - self.num_mines}\n")
+            f.write(f"/TotalMines, {self.num_mines}\n")
             for row in range(self.BOARD_SIZE):
                 f.write(f"/ Row {row}\n")
                 
