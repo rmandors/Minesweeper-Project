@@ -142,8 +142,8 @@ class MinesweeperVisualizer:
         # Etiquetas principales
         ax.set_xticks(np.arange(0, self.board_size, 1))
         ax.set_yticks(np.arange(0, self.board_size, 1))
-        ax.set_xticklabels(np.arange(0, self.board_size, 1))
-        ax.set_yticklabels(np.arange(0, self.board_size, 1))
+        ax.set_xticklabels(np.arange(1, self.board_size + 1, 1))
+        ax.set_yticklabels(np.arange(1, self.board_size + 1, 1))
         
         # Añadir valores en las celdas
         for i in range(self.board_size):
