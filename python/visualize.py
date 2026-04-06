@@ -98,14 +98,14 @@ class MinesweeperVisualizer:
         # Fórmula RGB565: R = (hex >> 11) << 3, G = ((hex >> 5) & 0x3F) << 2, B = (hex & 0x1F) << 3
         marie_colors = {
             'Color0': '#C88CC0',  # 6318 - Light Grey
-            'Color1': '#0000F8',  # 001F - Blue
-            'Color2': '#00F800',  # 03E0 - Green
-            'Color3': '#F80000',  # 7C00 - Red
-            'Color4': '#000080',  # 0010 - Dark Blue
-            'Color5': '#800000',  # 4000 - Dark Red
-            'Color6': '#00F8F8',  # 03FF - Cyan
+            'Color1': '#0000FF',  # Blue puro
+            'Color2': '#008000',  # Green puro
+            'Color3': '#FF0000',  # Red puro
+            'Color4': '#00008B',  # Dark Blue
+            'Color5': '#800000',  # Dark Red
+            'Color6': '#008080',  # Teal/Dark Cyan
             'Color7': '#800080',  # 4010 - Violet
-            'Color8': '#F8FCF8',  # 7FFF - White
+            'Color8': '#F8FCF8',   # 7FFF - White
         }
         
         # Crear mapa de colores: 0=vacío(grey), 1-8=colores progresivos, -1=negro(mina)
@@ -113,12 +113,12 @@ class MinesweeperVisualizer:
             marie_colors['Color0'],  # 0: vacío - Light Grey
             marie_colors['Color1'],  # 1: Blue
             marie_colors['Color2'],  # 2: Green
-            marie_colors['Color6'],  # 3: Cyan
+            marie_colors['Color3'],  # 3: Cyan
             marie_colors['Color4'],  # 4: Dark Blue
             marie_colors['Color5'],  # 5: Dark Red
-            marie_colors['Color7'],  # 6: Violet
-            marie_colors['Color8'],  # 7: White
-            marie_colors['Color3'],  # 8: Red
+            marie_colors['Color6'],  # 6: Violet
+            marie_colors['Color7'],  # 7: White
+            marie_colors['Color8'],  # 8: Red
             '#000000',               # 9 (-1): Mina - Negro
         ])
         
@@ -150,7 +150,7 @@ class MinesweeperVisualizer:
             for j in range(self.board_size):
                 value = self.board[i][j]
                 if value == -1:
-                    text = '💣'
+                    text = 'b'
                 elif value == 0:
                     text = ''
                 else:
