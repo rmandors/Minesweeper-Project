@@ -6,3 +6,4 @@ __pycache__
 # Archivos generados por el script de generación de tablero
 python/board_data.txt
 python/board_data.json
+marie/play_minesweeper.mas
