@@ -105,7 +105,7 @@ class MinesweeperVisualizer:
             'Color5': '#800000',  # Dark Red
             'Color6': '#008080',  # Teal/Dark Cyan
             'Color7': '#800080',  # 4010 - Violet
-            'Color8': '#F8FCF8',   # 7FFF - White
+            'Color8': '#F8FCF8',  # 7FFF - White
         }
         
         # Crear mapa de colores: 0=vacío(grey), 1-8=colores progresivos, -1=negro(mina)
@@ -150,7 +150,7 @@ class MinesweeperVisualizer:
             for j in range(self.board_size):
                 value = self.board[i][j]
                 if value == -1:
-                    text = 'b'
+                    text = 'M'
                 elif value == 0:
                     text = ''
                 else:
