@@ -11,7 +11,7 @@ A fully playable implementation of **Minesweeper** running on the **MARIE.js** s
 | 1. Generate your board | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1nu0tEDZgRo7gR0Hrk88ic7IQeCxWXEKR#scrollTo=1SlU4Ecyp8LA) |
 | 2. Run the game | [marie.js.org](https://marie.js.org) |
 
-Open the Colab notebook to generate your board. It produces `play_minesweeper.mas` — a complete, ready-to-run MARIE assembly file with your board already embedded. Copy its contents and paste it directly into [marie.js.org](https://marie.js.org) to play.
+Open the Colab notebook to generate your board. It produces `play_minesweeper.mas` — a complete, ready-to-run MARIE assembly file with your board already embedded. Copy its contents and paste it directly into MARIE.js to play.
 
 ---
 
