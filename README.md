@@ -4,6 +4,17 @@ A fully playable implementation of **Minesweeper** running on the **MARIE.js** s
 
 ---
 
+## 🚀 Try it out
+
+| Step | Link |
+|------|------|
+| 1. Generate your board | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1nu0tEDZgRo7gR0Hrk88ic7IQeCxWXEKR#scrollTo=1SlU4Ecyp8LA) |
+| 2. Run the game | [marie.js.org](https://marie.js.org) |
+
+Open the Colab notebook to generate your board. It produces `play_minesweeper.mas` — a complete, ready-to-run MARIE assembly file with your board already embedded. Copy its contents and paste it directly into [marie.js.org](https://marie.js.org) to play.
+
+---
+
 ## How it works
 
 MARIE is a minimal architecture with no mouse support, no interactive keyboard, and no random number generation. To work around this, the project is split into two clear layers:
@@ -13,10 +24,10 @@ MARIE is a minimal architecture with no mouse support, no interactive keyboard, 
 
 ### Workflow
 
-1. Run the Python script with the desired number of mines.
-2. Python randomly generates the board, computes neighbor counts, and outputs a memory block ready to paste into MARIE.js.
+1. Open the [Colab notebook](https://colab.research.google.com/drive/1nu0tEDZgRo7gR0Hrk88ic7IQeCxWXEKR#scrollTo=1SlU4Ecyp8LA) and run it to generate your board.
+2. Python randomly places mines, computes neighbor counts, and outputs `play_minesweeper.mas` — a complete MARIE assembly file with the board already embedded inside it.
 3. Python also prints a full board visualization for reference.
-4. Paste the memory block into the MARIE program.
+4. Copy the entire contents of `play_minesweeper.mas` and paste it into [marie.js.org](https://marie.js.org).
 5. Run the program — the game is live.
 
 ---
@@ -27,14 +38,17 @@ MARIE is a minimal architecture with no mouse support, no interactive keyboard, 
 Minesweeper-Project/
 │
 ├── python/
-│   ├── generate_board.py     # Board generation + MARIE memory block export
-│   └── visualize.py          # Board visualization (console or image)
+│   ├── generate_board.py       # Board generation + MARIE memory block export
+│   └── visualize.py            # Board visualization (console or image)
 │
 ├── marie/
-│   └── minesweeper.mas       # Main game program in MARIE assembly
+│   └── base_logic.mas          # Base game logic in MARIE assembly
+│   └── play_minesweeper.mas    # Main game program (with board loaded) in MARIE
 │
 ├── docs/
-│   └── report.tex            # Project writeup (LaTeX)
+│   └── paper.tex               # Source code for project writeup (LaTeX)
+│   └── paper.pdf               # Project writeup (IEEE Format)
+│   └── poster.pdf              # Scientific poster summarizing paper
 │
 ├── .gitignore
 │
@@ -51,8 +65,8 @@ Since MARIE reads input sequentially, each move is entered as three consecutive 
 
 | Prompt | Value |
 |--------|-------|
-| Row | `0`–`15` |
-| Column | `0`–`15` |
+| Row | `1`–`16` |
+| Column | `1`–`16` |
 | Action | `1` = reveal · `2` = toggle flag |
 
 **Example** — reveal the cell at row 6, column 10:
@@ -98,15 +112,8 @@ The board is **16 × 16 = 256 cells**, stored in two separate memory structures:
 
 The script takes the number of mines as input, randomly places them on the 16×16 grid, computes neighbor counts for every cell, and outputs two things:
 
-1. **MARIE memory block** — paste directly into Marie.js.
+1. **`play_minesweeper.mas`** — the complete MARIE assembly file with your board embedded, ready to paste directly into [marie.js.org](https://marie.js.org).
 2. **Board visualization** — shows mines and values 0–8 to verify correctness.
-
-### Usage
-
-```bash
-cd python
-python generate_board.py --mines 40
-```
 
 ---
 
