@@ -11,16 +11,16 @@
 /   Action : 1 = revelar celda, 2 = poner/quitar bandera
 
 / MEMORIA:
-/   0x100 - 0x194 : Código (149 instrucciones)
-/   0x195 - 0x1B1 : Variables y colores
-/   0x1B2 - 0x2B1 : Board data (copiar el mapa del Python)
+/   0x100 - 0x22D : Código (instrucciones)
+/   0x22E - 0x21F : Variables y colores
+/   0x256 - 0x355 : Board data (copiar el mapa del Python)
 /   0xF00 - 0xFFF : Display 16x16
 
 / SCORE:
 /   Cada mina revelada anade un punto extra al score del jugador.
 /   El score no se muestra hasta el final.
 
-ORG 100
+ORG 100 
 
 / DISPLAY
 Load    DisplayStart
@@ -174,18 +174,220 @@ RevealCell,     LoadI   CurrentPos
                 Jump    RevealSafe
                 Jump    GameOver
 
-RevealSafe,     Load    ColorTableBase		/ ColorTable[CellValue]
+RevealSafe,     Load    ColorTableBase
                 Add     CellValue
                 Store   TempAddr
                 LoadI   TempAddr
-                StoreI  CurrentPos              / pintar celda con el color que es
+                StoreI  CurrentPos          / pintar celda
+
+                Load    CellValue
+                Skipcond 400               / si CellValue == 0, hacer flood fill
+                Jump    GameLoop           / != 0, listo
+                Jump    InitFlood          / == 0, iniciar BFS
+
+/ Flood fill (BFS)
+InitFlood,      Load    QueueBase
+                Store   QueueHead
+                Store   QueueTail          / cola vacía: head == tail
+
+                / Encolar celda inicial
+                Load    CurrentPos
+                StoreI  QueueTail
+                Load    QueueTail
+                Add     One
+                Store   QueueTail
+
+/ Ciclo principal BFS 
+FloodLoop,      Load    QueueHead
+                Subt    QueueTail
+                Skipcond 000
+                Jump    GameLoop           / head == tail, cola vacía: salir
                 
-                /Load    SafeCellsLeft          / IMPLEMENTACION DEL JUEGO
-                /Subt    One                    / se gana cuando estan abiertas todas las casillas.
-                /Store   SafeCellsLeft          / comentado ahora, porque cambie a que se gane cuando se flaggean todas las bombas
-                /Skipcond 400
-                Jump    GameLoop
-                /Jump    WinGame
+                LoadI   QueueHead          / desencolar
+                Store   ProcessCell
+                Load    QueueHead
+                Add     One
+                Store   QueueHead
+
+                Load    ProcessCell
+                Subt    DisplayStart
+                Store   ProcOffset
+                Store   ColCalc
+
+ColMod,         Load    ColCalc
+                Subt    DisplayWidth       / ColCalc - 16
+                Skipcond 000               / salta si resultado < 0 
+                Jump    ColModNext
+
+                Jump    FTryLeft
+
+ColModNext,     Store   ColCalc
+                Jump    ColMod
+
+/ Izquierda (offset -1)
+FTryLeft,       Load    ColCalc
+                Skipcond 800               / salta si ColIdx > 0
+                Jump    FTryRight
+
+                Load    ProcessCell
+                Subt    One
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Derecha (offset +1)
+FTryRight,      Load    ColCalc
+                Subt    Fifteen
+                Skipcond 000               / salta si ColIdx < 15
+                Jump    FTryUp
+
+                Load    ProcessCell
+                Add     One
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Arriba (offset -16)
+FTryUp,         Load    ProcOffset
+                Subt    DisplayWidth       / ProcOffset - 16
+                Skipcond 000               / salta si < 0 
+                Jump    FDoUp
+
+                Jump    FTryDown
+
+FDoUp,          Load    ProcessCell
+                Subt    DisplayWidth
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Abajo (offset +16)
+FTryDown,       Load    ProcOffset
+                Subt    TwoForty           / ProcOffset - 240
+                Skipcond 000               / salta si < 0 
+                Jump    FTryUL
+
+                Load    ProcessCell
+                Add     DisplayWidth
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Diagonal Arriba-Izquierda (offset -17)
+FTryUL,         Load    ColCalc
+                Skipcond 800               / salta si ColIdx > 0
+                Jump    FTryUR
+                
+                Load    ProcOffset
+                Subt    DisplayWidth
+                Skipcond 000               / salta si fila inválida
+                Jump    FDoUL
+
+                Jump    FTryUR
+
+FDoUL,          Load    ProcessCell
+                Subt    DisplayWidth
+                Subt    One
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Diagonal Arriba-Derecha (offset -15)
+FTryUR,         Load    ColCalc
+                Subt    Fifteen
+                Skipcond 000               / salta si ColIdx < 15
+                Jump    FTryDL
+
+                Load    ProcOffset
+                Subt    DisplayWidth
+                Skipcond 000               / salta si fila inválida
+                Jump    FDoUR
+
+                Jump    FTryDL
+
+FDoUR,          Load    ProcessCell
+                Subt    DisplayWidth
+                Add     One
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Diagonal Abajo-Izquierda (offset +15)
+FTryDL,         Load    ColCalc
+                Skipcond 800               / salta si ColIdx > 0
+                Jump    FTryDR
+
+                Load    ProcOffset
+                Subt    TwoForty
+                Skipcond 000               / salta si ProcOffset < 240 
+                Jump    FTryDR
+
+                Load    ProcessCell
+                Add     DisplayWidth
+                Subt    One
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+/ Diagonal Abajo-Derecha (offset +17)
+FTryDR,         Load    ColCalc
+                Subt    Fifteen
+                Skipcond 000               / salta si ColIdx < 15
+                Jump    BackToFlood
+
+                Load    ProcOffset
+                Subt    TwoForty
+                Skipcond 000               / salta si ProcOffset < 240
+                Jump    BackToFlood
+
+                Load    ProcessCell
+                Add     DisplayWidth
+                Add     One
+                Store   NeighborPos
+
+                JnS     CheckReveal
+
+BackToFlood,    Jump    FloodLoop
+
+/ Revela un vecino si está oculto y no es mina.
+CheckReveal,    HEX 000
+
+                LoadI   NeighborPos
+                Subt    ColorHidden
+                Skipcond 400               / salta si == ColorHidden
+                JumpI   CheckReveal        / no oculta = ignorar
+
+                Load    NeighborPos
+                Subt    DisplayStart
+                Add     BoardStart
+                Store   TempAddr
+                LoadI   TempAddr
+                Store   FloodCellVal
+
+                Load    FloodCellVal
+                Add     One
+                Skipcond 400               / salta si es mina (AC == 0)
+                Jump    CRReveal
+
+                JumpI   CheckReveal        / es mina, no revelar
+
+CRReveal,       Load    ColorTableBase
+                Add     FloodCellVal
+                Store   TempAddr
+                LoadI   TempAddr
+                StoreI  NeighborPos        
+
+                Load    FloodCellVal
+                Skipcond 400               / salta si == 0
+                JumpI   CheckReveal        / != 0, no encolar
+                
+                Load    NeighborPos
+                StoreI  QueueTail
+                Load    QueueTail
+                Add     One
+                Store   QueueTail
+                
+                JumpI   CheckReveal
 
 / GAME OVER
 GameOver,       Load    ColorMine
@@ -229,7 +431,7 @@ WinGame,        Load    Score
                 Halt
  
  
-/ VARIABLES (desde 0x19C)
+/ VARIABLES (desde 0x200)
 
 RowInput,       HEX 000
 ColInput,       HEX 000
@@ -241,17 +443,16 @@ RowCounter,     HEX 000
 ScanPtr,        HEX 000
 Score,          HEX 000
 
-
 DisplayStart,   HEX F00		/ Display's first cell
 DisplayEnd,     HEX FFF		/ Display's last cell
 DisplayWidth,	HEX 010
-BoardStart,     HEX 1BA         / [dirección donde empieza board data]
+BoardStart,     HEX 256        / [dirección donde empieza board data]
 
 ColorHidden,    HEX 4210	/ Dark Grey
 ColorFlag,      HEX 7FE0	/ Yellow
 ColorMine,      HEX 0000	/ Black
 
-ColorTableBase, HEX 1AD         / [dirección de Color0]
+ColorTableBase, HEX 23F         / [dirección de Color0]
 
 Color0,         HEX 6318	/ Fondo, Light Grey
 Color1,         HEX 001F	/ 1, Blue
@@ -262,9 +463,20 @@ Color5,         HEX 4000	/ 5, Dark Red
 Color6,         HEX 03FF	/ 6, Cyan
 Color7,         HEX 4010	/ 7, Violet
 Color8,         HEX 7FFF	/ 8, White
+   
+ProcessCell,    HEX 000
+ProcOffset,     HEX 000
+ColCalc,        HEX 000
+NeighborPos,    HEX 000
+FloodCellVal,   HEX 000
+QueueHead,      HEX 000
+QueueTail,      HEX 000
+QueueBase,      HEX 400  
 
 One,            HEX 001 
 Two,            HEX 002
+Fifteen,        HEX 00F
+TwoForty,       HEX 0F0  
 	
 / ================================================================
 / BOARD DATA (desde 0x1BA)
