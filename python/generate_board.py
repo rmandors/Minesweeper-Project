@@ -7,14 +7,13 @@ class MinesweeperBoardGenerator:
     
     BOARD_SIZE = 16
     TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE  # 256 celdas
-    DEFAULT_MINES = 10
     
     # Valores de representación
     MINE = -1
     HIDDEN = 9
     EMPTY = 0
     
-    def __init__(self, num_mines=DEFAULT_MINES, seed=None):
+    def __init__(self, num_mines, seed=None):
         """
         Inicializa el generador de tablero
         
@@ -186,9 +185,21 @@ class MinesweeperBoardGenerator:
 
 def main():
     """Función principal para generar el tablero"""
-    
-    # Crear generador (usa DEFAULT_MINES por defecto)
-    generator = MinesweeperBoardGenerator(seed=None)
+
+    while True:
+        raw = input("Ingresa el número de minas (1-255): ").strip()
+        try:
+            num_mines = int(raw)
+        except ValueError:
+            print("Entrada inválida. Debe ser un número entero.")
+            continue
+
+        if 1 <= num_mines <= 255:
+            break
+
+        print("Número fuera de rango. Debe estar entre 1 y 255.")
+
+    generator = MinesweeperBoardGenerator(num_mines=num_mines, seed=None)
     
     # Generar tablero
     board = generator.generate()
