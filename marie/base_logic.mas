@@ -463,7 +463,7 @@ NextScanPtr,    Load    ScanPtr
 PrintMsg,       HEX 000
 
 PrintLoop,  LoadI   MsgPtr
-            Skipcond 400        			/ AC == 0? salta Jump PrintLoop → cae en PrintDone
+            Skipcond 400        			
             Jump    DoPrint
 			
             Jump    PrintDone
