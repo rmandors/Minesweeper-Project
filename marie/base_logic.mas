@@ -11,9 +11,9 @@
 /   Action : 1 = revelar celda, 2 = poner/quitar bandera
 
 / MEMORIA:
-/   0x100 - 0x22D : Código (instrucciones)
-/   0x22E - 0x21F : Variables y colores
-/   0x256 - 0x355 : Board data (copiar el mapa del Python)
+/   0x100 - 0x234 : Código (instrucciones)
+/   0x235 - 0x25C : Variables y colores
+/   0x25D - 0x35C : Board data (copiar el mapa del Python)
 /   0xF00 - 0xFFF : Display 16x16
 
 / SCORE:
@@ -29,16 +29,19 @@ Store   CurrentPos
 / Pintar todo como oculto (dark grey)
 InitDisplay,    Load    ColorHidden
                 StoreI  CurrentPos          / pintar celda actual = DisplayStart al inicio
+				
                 Load    CurrentPos
                 Subt    DisplayEnd
                 Skipcond 400                / si CurrentPos == DisplayEnd, salta porque todo esta pintado
                 Jump    MoreInit
+				
                 Jump    GameLoop            / todo esta pintado, se puede iniciar
 
 / Pasar por todas las celdas del diplay en orden hasta la ultima
 MoreInit,       Load    CurrentPos
                 Add     One
                 Store   CurrentPos          / avanzar a siguiente celda
+				
                 Jump    InitDisplay
 
 / JUEGO
@@ -58,47 +61,55 @@ GameLoop,       Input
                 Jump    PlayAction
 
 ValidateRow,	HEX	000
-		Load 	RowInput
-  		SkipCond 800                 / Check for RowInput >= 1, else skip       	
-    		Jump    GameLoop	
-		Load 	RowInput
-		Subt	One
- 		Subt 	DisplayWidth   
-   		SkipCond 000		     / Check for RowInput <= 16           
-    		Jump 	GameLoop
-    		JumpI 	ValidateRow
+				Load 	RowInput
+  				SkipCond 800                 / Check for RowInput >= 1, else skip       	
+    			Jump    GameLoop
+				
+				Load 	RowInput
+				Subt	One
+ 				Subt 	DisplayWidth   
+   				SkipCond 000		     / Check for RowInput <= 16           
+    			Jump 	GameLoop
+				
+    			JumpI 	ValidateRow
 
 ValidateCol,    HEX     000
                 Load    ColInput
                 Skipcond 800                 / Check for ColumnInput >= 1      
                 Jump    GameLoop
+				
                 Load    ColInput
                 Subt    One
                 Subt    DisplayWidth
                 Skipcond 000                 / Check for ColumnInput <= 16 
                 Jump    GameLoop
+				
                 JumpI   ValidateCol
 
 ValidateAction, HEX     000
                 Load    ActionInput
                 Skipcond 800                 / Check for ActionInput >= 1   
                 Jump    GameLoop
+				
                 Load    ActionInput
                 Subt    One
                 Subt    Two
                 Skipcond 000                 / Check for ActionInput <= 2   
                 Jump    GameLoop
+				
                 JumpI   ValidateAction
 
 / Ejecutar accion
 PlayAction,	Load	One
-                Store	RowCounter           / Reset row counter
-                JnS	MoveToCoords	     / CurrentPos para (Row, Col)
-                Load	ActionInput
-                Subt	One
-                SkipCond 400						
-                Jump	ToggleFlag	     / Action = 2, toggle flag
-                Jump	RevealCell	     / Action = 1, reveal cell
+            Store	RowCounter           / Reset row counter
+            JnS		MoveToCoords	     / CurrentPos para (Row, Col)
+			
+            Load	ActionInput
+            Subt	One
+            SkipCond 400						
+            Jump	ToggleFlag	     	/ Action = 2, toggle flag
+			
+            Jump	RevealCell	     	/ Action = 1, reveal cell
 
 / Ubicar CurrentPos con las coordenadas recibidas
 / CurrentPos = F00 + (Row-1)*16 + (Col-1)
@@ -127,44 +138,49 @@ ToggleFlag, 	LoadI   	CurrentPos
             	Subt    	ColorHidden
             	SkipCond 	400             / si es 0 (fue Hidden), ahi  pone la bandera
             	Jump    	CheckFlagged	/ si no, revisa
+				
             	Load    	ColorFlag
-            	StoreI  	CurrentPos	/ Set flag
+            	StoreI  	CurrentPos		/ Set flag
+				
             	Jump CheckFlaggedMines
 
 CheckFlagged,   LoadI   CurrentPos
                 Subt    ColorFlag
                 Skipcond 400                
-                Jump    GameLoop                / si no es hidden ni bandera, ignorar
+                Jump    GameLoop            / si no es hidden ni bandera, ignorar
+				
                 Load    ColorHidden
                 StoreI  CurrentPos	        / si habia bandera, quitarla (pintar de hidden)
-                Jump    GameLoop		/ (no se puede poner bandera a numeros)
+				
+                Jump    GameLoop			/ (no se puede poner bandera a numeros)
 
-CheckFlaggedMines, Load    CurrentPos
-                Subt    DisplayStart
-                Add     BoardStart
-                Store   TempAddr		/ board_addr = BoardStart + (CurrentPos - DisplayStart)
-                LoadI   TempAddr			
-                Add     One			/ si es mina (-1+1=0), suma un punto
-                SkipCond 400
-                Jump    GameLoop
-                Load    Score			/ manejar el score - un punto por cada mina flaggeada
-                Add     One
-                Store   Score
-                Subt    TotalMines		/ si Score == TotalMines, ganaste
-                Skipcond 400                    / IMPLEMENTACION TEMPORAL
-                Jump    GameLoop                / hecho para que el usuario no tenga que abrir 16x16 casillas
-                Jump    WinGame                 / mientras no funciona el abrir todo el area vacio
+CheckFlaggedMines,  Load    CurrentPos
+               	    Subt    DisplayStart
+                    Add     BoardStart
+                	Store   TempAddr		/ board_addr = BoardStart + (CurrentPos - DisplayStart)
+					
+                	LoadI   TempAddr			
+                	Add     One				/ si es mina (-1+1=0), suma un punto al score
+                	SkipCond 400
+                	Jump    GameLoop
+					
+                	Load    Score			/ score: cantidad de minas flaggeadas
+                	Add     One
+                	Store   Score
+					
+                	Jump    GameLoop        / win se detecta al revelar celdas,
 
 / REVELAR CELDA
 RevealCell,     LoadI   CurrentPos
                 Subt    ColorHidden
-                Skipcond 400                    / si NO es hidden, ignorar
+                Skipcond 400            / si NO es hidden, ignorar
                 Jump    GameLoop
 
                 Load    CurrentPos		/ direccion en board
                 Subt    DisplayStart
                 Add     BoardStart
                 Store   TempAddr		/ board_addr = BoardStart + (CurrentPos - DisplayStart)
+				
                 LoadI   TempAddr			
                 Store   CellValue               / valor del board: -1 a 8
 
@@ -172,17 +188,26 @@ RevealCell,     LoadI   CurrentPos
                 Add     One
                 Skipcond 400                    / si +1 == 0 (-1 = mina), game over
                 Jump    RevealSafe
+				
                 Jump    GameOver
 
 RevealSafe,     Load    ColorTableBase
                 Add     CellValue
                 Store   TempAddr
+				
                 LoadI   TempAddr
-                StoreI  CurrentPos          / pintar celda
+                StoreI  CurrentPos         / pintar celda
+
+                Load    SafeCellsLeft      / decrementar celdas seguras restantes
+                Subt    One
+                Store   SafeCellsLeft
+                Skipcond 800               
+                Jump    WinGame            / SafeCellsLeft == 0: todas reveladas, victoria
 
                 Load    CellValue
                 Skipcond 400               / si CellValue == 0, hacer flood fill
                 Jump    GameLoop           / != 0, listo
+				
                 Jump    InitFlood          / == 0, iniciar BFS
 
 / Flood fill (BFS)
@@ -193,6 +218,7 @@ InitFlood,      Load    QueueBase
                 / Encolar celda inicial
                 Load    CurrentPos
                 StoreI  QueueTail
+				
                 Load    QueueTail
                 Add     One
                 Store   QueueTail
@@ -374,15 +400,23 @@ CheckReveal,    HEX 000
 CRReveal,       Load    ColorTableBase
                 Add     FloodCellVal
                 Store   TempAddr
+				
                 LoadI   TempAddr
                 StoreI  NeighborPos        
 
+                Load    SafeCellsLeft       / decrementar celdas seguras restantes
+                Subt    One
+                Store   SafeCellsLeft
+                Skipcond 800                
+                Jump    WinGame             / SafeCellsLeft == 0: todas reveladas, victoria
+
                 Load    FloodCellVal
-                Skipcond 400               / salta si == 0
-                JumpI   CheckReveal        / != 0, no encolar
+                Skipcond 400                / salta si == 0
+                JumpI   CheckReveal         / != 0, no encolar
                 
                 Load    NeighborPos
                 StoreI  QueueTail
+				
                 Load    QueueTail
                 Add     One
                 Store   QueueTail
@@ -393,18 +427,20 @@ CRReveal,       Load    ColorTableBase
 GameOver,       Load    ColorMine
                 StoreI  CurrentPos              / pintar mina de negro
 
-                Load    DisplayStart		/ escanear desde el inicio,
+                Load    DisplayStart			/ escanear desde el inicio,
                 Store   ScanPtr                 / para mostrar todas las minas en ScanMines
 
 / Pasar por todas las celdas para revelar las minas
 ScanMines,      Load    ScanPtr 			
                 Subt    DisplayStart		
-                Add     BoardStart	        / donde empiezan los datos de board
+                Add     BoardStart	        	/ donde empiezan los datos de board
                 Store   TempAddr
+				
                 LoadI   TempAddr
                 Add     One                 
-                Skipcond 400			/ si es mina (-1+1=0), colorear
+                Skipcond 400					/ si es mina (-1+1=0), colorear
                 Jump    CheckDisplayEnd         / else, revisar que no es el final aun
+				
                 Load    ColorMine
                 StoreI  ScanPtr             
 
@@ -413,12 +449,14 @@ CheckDisplayEnd,Load    ScanPtr
                 Subt    DisplayEnd
                 Skipcond 400                    / si es el final, terminar
                 Jump    NextScanPtr
+				
                 Jump    GameOverHalt
 
 / mover ScanPtr a siguiente celda
 NextScanPtr,    Load    ScanPtr
                 Add     One
                 Store   ScanPtr
+				
                 Jump    ScanMines
 
 / FIN DEL JUEGO
@@ -431,7 +469,7 @@ WinGame,        Load    Score
                 Halt
  
  
-/ VARIABLES (desde 0x200)
+/ VARIABLES (desde 0x235)
 
 RowInput,       HEX 000
 ColInput,       HEX 000
@@ -446,13 +484,13 @@ Score,          HEX 000
 DisplayStart,   HEX F00		/ Display's first cell
 DisplayEnd,     HEX FFF		/ Display's last cell
 DisplayWidth,	HEX 010
-BoardStart,     HEX 256        / [dirección donde empieza board data]
+BoardStart,     HEX 25D     / [dirección donde empieza board data]
 
 ColorHidden,    HEX 4210	/ Dark Grey
 ColorFlag,      HEX 7FE0	/ Yellow
 ColorMine,      HEX 0000	/ Black
 
-ColorTableBase, HEX 23F         / [dirección de Color0]
+ColorTableBase, HEX 246     / [dirección de Color0]
 
 Color0,         HEX 6318	/ Fondo, Light Grey
 Color1,         HEX 001F	/ 1, Blue
@@ -482,4 +520,3 @@ TwoForty,       HEX 0F0
 / BOARD DATA (desde 0x1BA)
 / Generado por Python. -1 = mina, 0-8 = vecinos con mina.
 / ================================================================
-
