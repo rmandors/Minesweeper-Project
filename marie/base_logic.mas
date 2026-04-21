@@ -26,7 +26,7 @@ ORG 100
 Load    DisplayStart
 Store   CurrentPos
 
-/ Reinterpretar SafeCellsLeft como "casillas cerradas" (256 al inicio)
+/ SafeCellsLeft para determinar la victoria
 Load    SafeCellsLeft
 Add     TotalMines
 Store   SafeCellsLeft
@@ -229,7 +229,7 @@ RevealSafe,     Load    ColorTableBase
 				
                 Jump    InitFlood          / == 0, iniciar BFS
 
-/ Flood fill (BFS)
+/ FLOOD FILL (BFS)
 InitFlood,      Load    QueueBase
                 Store   QueueHead
                 Store   QueueTail          / cola vacía: head == tail

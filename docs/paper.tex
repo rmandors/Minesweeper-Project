@@ -1,0 +1,177 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+% Pseudocódigo en español
+\algrenewcommand\algorithmicwhile{\textbf{mientras}}
+\algrenewcommand\algorithmicdo{\textbf{hacer}}
+\algrenewcommand\algorithmicend{\textbf{fin}}
+\algrenewcommand\algorithmicif{\textbf{si}}
+\algrenewcommand\algorithmicthen{\textbf{entonces}}
+\algrenewcommand\algorithmicelse{\textbf{si no}}
+\algrenewcommand\algorithmicfor{\textbf{para}}
+\algrenewcommand\algorithmicreturn{\textbf{retornar}}
+\floatname{algorithm}{Algoritmo}
+
+\begin{document}
+
+\title{Implementación de Buscaminas sobre MARIE.js:\\
+Generación externa del tablero y lógica de juego en ensamblador}
+
+\author{
+\IEEEauthorblockN{Liam Huang, Alexander Kholodov, Raymond Portilla}
+\IEEEauthorblockA{Organización de Computadores, NRC 2701\\
+Universidad San Francisco de Quito USFQ\\
+Quito, Ecuador}
+}
+
+\maketitle
+
+\begin{abstract}
+Se presenta una implementación funcional del juego Buscaminas sobre el simulador MARIE.js, utilizando su display gráfico de 16$\times$16 celdas como único medio de salida visual. Debido a las limitaciones de la arquitectura MARIE (ausencia de generación aleatoria, entrada no interactiva y un conjunto reducido de instrucciones), el sistema se divide en dos capas: un generador externo en Python que produce el mapa del tablero y lo inserta dentro del archivo ensamblador, y un programa en MARIE que gestiona la interacción, la lógica del juego, la revelación por inundación (BFS) y el renderizado mediante colores RGB565. El resultado es un ejecutable único en \texttt{.mas} que se abre directamente en el simulador.
+\end{abstract}
+
+\begin{IEEEkeywords}
+MARIE, ensamblador, Buscaminas, arquitectura de computadores, flood fill, BFS.
+\end{IEEEkeywords}
+
+\section{Introducción}
+
+MARIE (\textit{Machine Architecture that is Really Intuitive and Easy}) es una arquitectura pedagógica introducida por Null y Lobur \cite{null2014essentials} que expone al estudiante un modelo von Neumann simplificado: un único acumulador, memoria direccionable por palabra y un conjunto de aproximadamente una docena de instrucciones. Su simulador web, MARIE.js \cite{mariejs}, incorpora un display gráfico de $16 \times 16$ celdas de color mapeado en memoria a partir de la dirección \texttt{0xF00}, lo que habilita aplicaciones visuales que rebasan el alcance típico de ejercicios aritméticos.
+
+Este trabajo aborda la implementación del juego Buscaminas sobre dicha plataforma. El reto central no es algorítmico sino arquitectónico: MARIE carece de instrucciones para aleatoriedad, no dispone de un dispositivo de entrada interactivo y cada operación lógica debe expresarse mediante un \texttt{Skipcond} y un salto, lo que convierte construcciones triviales en lenguajes de alto nivel (condicionales compuestos, acceso a matrices 2D, recursión) en rutinas que deben construirse manualmente. Se optó por un diseño en dos capas: Python como preprocesador de datos y MARIE como motor de ejecución. Esta separación refleja la práctica industrial habitual de preparar datos fuera del sistema embebido y delegar únicamente la lógica de tiempo de ejecución al dispositivo con recursos limitados.
+
+\section{Metodología}
+
+\subsection{Arquitectura del sistema}
+
+El sistema se compone de tres artefactos: \texttt{base\_logic.mas} contiene el programa MARIE con la lógica completa del juego y un espacio reservado al final para los datos del tablero; el script \texttt{generate\_board.py} produce el mapa aleatorio; y \texttt{play\_minesweeper.mas} es el archivo final generado por Python, que concatena la lógica base con el bloque de datos y se abre directamente en el simulador. Este flujo evita copiar y pegar manualmente 256 valores de memoria por cada nueva partida.
+
+\subsection{Generación del tablero en Python}
+
+La clase \texttt{MinesweeperBoardGenerator} recibe el número de minas como parámetro y ejecuta dos fases. Primero coloca minas en posiciones aleatorias sin repetición usando un conjunto para descartar duplicados. Luego recorre cada celda no minada y cuenta cuántas de sus ocho vecinas son minas, respetando los límites del tablero. El resultado es una matriz $16 \times 16$ cuyos valores pertenecen a $\{-1, 0, 1, \dots, 8\}$, donde $-1$ denota mina y los demás indican el número de minas adyacentes.
+
+El método \texttt{export\_play\_minesweeper\_mas} lee \texttt{base\_logic.mas}, serializa el tablero como una secuencia de directivas \texttt{DEC} (una por celda, en orden fila-columna) y lo concatena al archivo. También emite las etiquetas \texttt{SafeCellsLeft} y \texttt{TotalMines} requeridas por la lógica de victoria. Adicionalmente se exporta un JSON con la misma información, consumido por \texttt{visualize.py} para renderizar el tablero de referencia con Matplotlib y así verificar visualmente la generación.
+
+\subsection{Mapa de memoria y representación}
+
+El programa utiliza tres regiones de memoria claramente separadas:
+
+\begin{itemize}
+  \item \texttt{0x100--0x22D}: código del programa.
+  \item \texttt{0x22E--0x23F}: variables y tabla de colores.
+  \item \texttt{0x256--0x355}: datos del tablero real ($-1$ o $0$--$8$).
+  \item \texttt{0x400+}: cola para el BFS de revelación.
+  \item \texttt{0xF00--0xFFF}: \textit{framebuffer} del display.
+\end{itemize}
+
+El tablero real y el \textit{framebuffer} se mantienen como estructuras paralelas de $256$ celdas: el primero almacena la verdad del juego y el segundo el estado visible para el jugador. La correspondencia entre ambos se obtiene mediante la relación \texttt{board\_addr = BoardStart + (CurrentPos - DisplayStart)}. Cada valor del tablero se mapea a un color RGB565 mediante la tabla \texttt{ColorTableBase}, indexada directamente con el valor de la celda, lo que elimina la necesidad de cadenas de condicionales (Fig.~\ref{fig:colors}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\columnwidth]{fig_color_table.png}
+\caption{Codificación de colores RGB565 utilizada para los estados y valores numéricos del tablero.}
+\label{fig:colors}
+\end{figure}
+
+\subsection{Flujo principal del juego}
+
+La interacción se resuelve mediante tres llamadas consecutivas a \texttt{Input} (fila, columna y acción), cada una seguida de una rutina de validación que descarta valores fuera de rango y reinicia el ciclo. La acción es \texttt{1} para revelar y \texttt{2} para alternar bandera. Tras la validación, la rutina \texttt{MoveToCoords} calcula la dirección absoluta dentro del \textit{framebuffer} a partir de las coordenadas de entrada sumando \texttt{(Row-1)} desplazamientos verticales de tamaño 16 a la fila inicial, proceso mostrado en el Algoritmo~\ref{alg:coords}.
+
+\begin{algorithm}[H]
+\caption{MoveToCoords: coordenadas $\rightarrow$ dirección}
+\label{alg:coords}
+\begin{algorithmic}[1]
+\State $CurrentPos \gets DisplayStart + ColInput - 1$
+\State $RowCounter \gets 1$
+\While{$RowCounter < RowInput$}
+    \State $CurrentPos \gets CurrentPos + 16$
+    \State $RowCounter \gets RowCounter + 1$
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Revelado de celdas e inundación (BFS)}
+
+Cuando el jugador revela una celda vacía (valor $0$), la implementación canónica de Buscaminas propaga la revelación a todas las celdas conectadas también vacías y a sus fronteras numéricas. Se implementó esta propagación como una búsqueda en anchura iterativa (Algoritmo~\ref{alg:flood}) usando una cola circular a partir de \texttt{0x400}, con dos punteros (\texttt{QueueHead}, \texttt{QueueTail}). Para cada celda desencolada se evalúan las ocho posiciones vecinas, verificando en cada caso las condiciones de frontera (columna $>0$, columna $<15$, fila válida) mediante restas y \texttt{Skipcond}. La subrutina \texttt{CheckReveal} centraliza la lógica de revelado individual, pintado del color correspondiente y posible encolado del vecino, evitando duplicación de código entre las ocho direcciones.
+
+\begin{algorithm}[H]
+\caption{Flood Fill iterativo (BFS)}
+\label{alg:flood}
+\begin{algorithmic}[1]
+\State encolar celda inicial
+\While{cola no vacía}
+    \State $c \gets$ desencolar
+    \For{cada vecino $v$ de $c$ dentro del tablero}
+        \If{$v$ está oculto \textbf{y} $v$ no es mina}
+            \State pintar $v$ con su color
+            \If{valor de $v == 0$}
+                \State encolar $v$
+            \EndIf
+        \EndIf
+    \EndFor
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Banderas, victoria y derrota}
+
+La rutina \texttt{ToggleFlag} examina el color actual de la celda y alterna entre oculto y bandera, ignorando celdas ya reveladas. Al colocar una bandera sobre una celda cuyo valor real es $-1$, se incrementa \texttt{Score}; cuando \texttt{Score} iguala \texttt{TotalMines}, el programa considera la partida ganada. Este criterio sustituye temporalmente a la condición canónica (todas las celdas seguras reveladas) y se adopta por economía de interacción, dado que abrir manualmente hasta 256 celdas en el simulador resulta impráctico para tableros con pocas minas. Al revelar una mina se ejecuta \texttt{GameOver}, que pinta de negro todas las minas escaneando el tablero, emite el \texttt{Score} por \texttt{Output} y ejecuta \texttt{Halt}.
+
+\section{Resultados}
+
+El programa se probó en el simulador oficial MARIE.js con tableros generados para distintas densidades de minas (10, 30, 50). En los tres casos el archivo \texttt{play\_minesweeper.mas} se ensambló sin errores y el display mostró correctamente las $256$ celdas pintadas en gris oscuro al iniciar la ejecución. La Fig.~\ref{fig:initial} muestra el estado inicial.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.75\columnwidth]{fig_initial.png}
+\caption{Display al iniciar el programa: las 256 celdas se pintan de gris oscuro indicando estado oculto.}
+\label{fig:initial}
+\end{figure}
+
+La revelación de una celda vacía dispara correctamente la propagación BFS, descubriendo la región conectada hasta sus fronteras numéricas en un solo turno (Fig.~\ref{fig:flood}). Las celdas con valor entre 1 y 8 muestran el color asignado por la tabla y las banderas aparecen en amarillo al ejecutar la acción 2. En pruebas con $20$ minas, un recorrido típico de 5--8 jugadas permite revelar la totalidad del área segura gracias a la inundación.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.75\columnwidth]{fig_flood.png}
+\caption{Resultado de revelar una celda vacía: el algoritmo BFS propaga la revelación a toda la región conectada y sus fronteras numéricas.}
+\label{fig:flood}
+\end{figure}
+
+La condición de derrota se verificó revelando una celda marcada como mina: el display pinta de negro la celda pulsada y, tras el barrido final, todas las demás minas del tablero (Fig.~\ref{fig:gameover}). El registro de salida muestra el puntaje acumulado. La condición de victoria se alcanza marcando correctamente todas las minas con bandera; en ese momento el programa emite \texttt{Output} y finaliza.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.75\columnwidth]{fig_gameover.png}
+\caption{Estado de Game Over: tras revelar una mina, todas las minas del tablero se pintan de negro.}
+\label{fig:gameover}
+\end{figure}
+
+\section{Conclusiones}
+
+El proyecto demuestra que una arquitectura mínima como MARIE es capaz de soportar aplicaciones interactivas no triviales cuando el diseño reconoce sus limitaciones y traslada fuera del sistema aquellos cómputos que no le corresponden. La separación estricta entre preparación de datos en Python y ejecución de lógica en ensamblador permitió concentrar el esfuerzo en MARIE en aquello que sí es pertinente a la arquitectura: direccionamiento indirecto, control de flujo con \texttt{Skipcond} y manipulación del \textit{framebuffer}.
+
+La implementación del \textit{flood fill} como BFS iterativo con cola resultó ser la decisión de diseño más significativa, al evitar la recursión (inviable sin una pila dedicada) y al reutilizar una única subrutina \texttt{CheckReveal} para los ocho vecinos. Entre las limitaciones actuales destaca la condición de victoria basada en banderas correctas en lugar de celdas seguras reveladas; una versión futura debería mantener un contador \texttt{SafeCellsLeft} decrementado dentro de \texttt{CheckReveal} para aproximarse a la semántica canónica. Otras extensiones posibles incluyen soporte para múltiples tamaños de tablero y un indicador visual de progreso en una región marginal del display.
+
+\begin{thebibliography}{00}
+\bibitem{null2014essentials} L. Null and J. Lobur, \textit{The Essentials of Computer Organization and Architecture}, 4th ed. Burlington, MA: Jones \& Bartlett Learning, 2014.
+\bibitem{mariejs} MARIE.js contributors, ``MARIE.js: A JavaScript implementation of the MARIE simulator,'' \url{https://marie.js.org}, 2024.
+\bibitem{cormen2009} T. H. Cormen, C. E. Leiserson, R. L. Rivest, and C. Stein, \textit{Introduction to Algorithms}, 3rd ed. Cambridge, MA: MIT Press, 2009.
+\bibitem{minesweeper} C. Kaye, ``Minesweeper is NP-complete,'' \textit{The Mathematical Intelligencer}, vol. 22, no. 2, pp. 9--15, 2000.
+\end{thebibliography}
+
+\end{document}
