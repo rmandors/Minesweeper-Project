@@ -94,31 +94,30 @@ class MinesweeperVisualizer:
         # Convertir tablero 2D a array numpy para matplotlib
         board_array = np.array(self.board)
         
-        # Colores MARIE del display (convertidos de RGB565 a RGB)
-        # Fórmula RGB565: R = (hex >> 11) << 3, G = ((hex >> 5) & 0x3F) << 2, B = (hex & 0x1F) << 3
+        # Paleta para que la visualizacion de Python coincida con MARIE.
         marie_colors = {
-            'Color0': '#C88CC0',  # 6318 - Light Grey
-            'Color1': '#0000FF',  # Blue puro
-            'Color2': '#008000',  # Green puro
-            'Color3': '#FF0000',  # Red puro
-            'Color4': '#00008B',  # Dark Blue
-            'Color5': '#800000',  # Dark Red
-            'Color6': '#008080',  # Teal/Dark Cyan
-            'Color7': '#800080',  # 4010 - Violet
-            'Color8': '#F8FCF8',   # 7FFF - White
+            'Color0': '#C8C8C8',  # 0: Light Grey (abierta)
+            'Color1': '#0000FF',  # 1: Blue
+            'Color2': '#00AA00',  # 2: Green
+            'Color3': '#FF0000',  # 3: Red
+            'Color4': '#00008B',  # 4: Dark Blue
+            'Color5': '#800000',  # 5: Dark Red
+            'Color6': '#00B8B8',  # 6: Cyan
+            'Color7': '#800080',  # 7: Violet
+            'Color8': '#FFFFFF',  # 8: White
         }
         
-        # Crear mapa de colores: 0=vacío(grey), 1-8=colores progresivos, -1=negro(mina)
+        # Colores
         cmap = colors.ListedColormap([
             marie_colors['Color0'],  # 0: vacío - Light Grey
             marie_colors['Color1'],  # 1: Blue
             marie_colors['Color2'],  # 2: Green
-            marie_colors['Color3'],  # 3: Cyan
+            marie_colors['Color3'],  # 3: Red
             marie_colors['Color4'],  # 4: Dark Blue
             marie_colors['Color5'],  # 5: Dark Red
-            marie_colors['Color6'],  # 6: Violet
-            marie_colors['Color7'],  # 7: White
-            marie_colors['Color8'],  # 8: Red
+            marie_colors['Color6'],  # 6: Cyan
+            marie_colors['Color7'],  # 7: Violet
+            marie_colors['Color8'],  # 8: White
             '#000000',               # 9 (-1): Mina - Negro
         ])
         
@@ -150,7 +149,7 @@ class MinesweeperVisualizer:
             for j in range(self.board_size):
                 value = self.board[i][j]
                 if value == -1:
-                    text = 'b'
+                    text = 'M'
                 elif value == 0:
                     text = ''
                 else:

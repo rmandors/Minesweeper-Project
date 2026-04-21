@@ -7,14 +7,13 @@ class MinesweeperBoardGenerator:
     
     BOARD_SIZE = 16
     TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE  # 256 celdas
-    DEFAULT_MINES = 2
     
     # Valores de representación
     MINE = -1
     HIDDEN = 9
     EMPTY = 0
     
-    def __init__(self, num_mines=DEFAULT_MINES, seed=None):
+    def __init__(self, num_mines, seed=None):
         """
         Inicializa el generador de tablero
         
@@ -114,8 +113,8 @@ class MinesweeperBoardGenerator:
         
         with open(filename, 'w') as f:
             # Cada fila
-            f.write(f"/SafeCellsLeft, {256 - self.num_mines}\n")
-            f.write(f"/TotalMines, {self.num_mines}\n")
+            f.write(f"SafeCellsLeft, DEC {256 - self.num_mines}\n")
+            f.write(f"TotalMines, DEC {self.num_mines}\n")
             for row in range(self.BOARD_SIZE):
                 f.write(f"/ Row {row}\n")
                 
@@ -126,6 +125,42 @@ class MinesweeperBoardGenerator:
                     f.write(f"        Dec {value}\n")
         
         print(f"✓ Datos exportados a: {filename}")
+
+    def render_board_data_mas(self):
+        """
+        Renderiza el bloque de datos del tablero como líneas MARIE (.mas).
+        Se diseña para ser pegado al final de `base_logic.mas` bajo "BOARD DATA".
+        """
+        _address_start, memory_block = self.get_marie_memory_block()
+
+        lines = []
+        lines.append(f"SafeCellsLeft, DEC {256 - self.num_mines}")
+        lines.append(f"TotalMines, DEC {self.num_mines}")
+        for row in range(self.BOARD_SIZE):
+            lines.append(f"/ Row {row + 1}")
+            for col in range(self.BOARD_SIZE):
+                idx = row * self.BOARD_SIZE + col
+                value = memory_block[idx]
+                lines.append(f"        DEC {value}")
+        return "\n".join(lines) + "\n"
+
+    def export_play_minesweeper_mas(self, base_logic_path, output_path):
+        """
+        Crea un archivo .mas listo para ensamblar, combinando:
+        - el contenido de `base_logic.mas`
+        - el tablero generado (append al final)
+        """
+        with open(base_logic_path, "r") as f:
+            base = f.read()
+
+        if base and not base.endswith("\n"):
+            base += "\n"
+
+        combined = base + self.render_board_data_mas()
+        with open(output_path, "w") as f:
+            f.write(combined)
+
+        print(f"✓ Archivo MARIE generado: {output_path}")
     
     def export_json(self, filename):
         """Exporta el tablero en formato JSON para visualización"""
@@ -150,19 +185,32 @@ class MinesweeperBoardGenerator:
 
 def main():
     """Función principal para generar el tablero"""
-    
-    # Crear generador (usa DEFAULT_MINES por defecto)
-    generator = MinesweeperBoardGenerator(seed=None)
+
+    while True:
+        raw = input("Ingresa el número de minas (1-255): ").strip()
+        try:
+            num_mines = int(raw)
+        except ValueError:
+            print("Entrada inválida. Debe ser un número entero.")
+            continue
+
+        if 1 <= num_mines <= 255:
+            break
+
+        print("Número fuera de rango. Debe estar entre 1 y 255.")
+
+    generator = MinesweeperBoardGenerator(num_mines=num_mines, seed=None)
     
     # Generar tablero
     board = generator.generate()
     
     # Exportar en diferentes formatos
     project_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Txt para copiar y pegar en MARIE
-    txt_file = os.path.join(project_dir, 'board_data.txt')
-    generator.export_to_marie_txt(txt_file)
+
+    # Generar .mas listo para jugar: base_logic + board data al final
+    base_logic = os.path.join(project_dir, "..", "marie", "base_logic.mas")
+    out_mas = os.path.join(project_dir, "..", "marie", "play_minesweeper.mas")
+    generator.export_play_minesweeper_mas(base_logic, out_mas)
     
     # Exportar JSON para visualización
     json_file = os.path.join(project_dir, 'board_data.json')
@@ -172,7 +220,7 @@ def main():
     print(f"  Minas: {generator.num_mines}")
     print(f"  Celdas vacías: {generator.BOARD_SIZE * generator.BOARD_SIZE - generator.num_mines}")
     print(f"\nArchivos generados:")
-    print(f"  - board_data.txt (copiar y pegar en MARIE)")
+    print(f"  - marie/play_minesweeper.mas (abrir en MARIE)")
     print(f"  - board_data.json (para visualizar)")
 
 
