@@ -11,9 +11,9 @@
 /   Action : 1 = revelar celda, 2 = poner/quitar bandera
 
 / MEMORIA:
-/   0x100 - 0x234 : Código (instrucciones)
-/   0x235 - 0x25C : Variables y colores
-/   0x25D - 0x35C : Board data (copiar el mapa del Python)
+/   0x100 - 0x235 : Código (instrucciones)
+/   0x236 - 0x291 : Variables y colores
+/   0x292 - 0x391 : Board data (copiar el mapa del Python)
 /   0xF00 - 0xFFF : Display 16x16
 
 / SCORE:
@@ -459,13 +459,40 @@ NextScanPtr,    Load    ScanPtr
 				
                 Jump    ScanMines
 
+/ imprimir string en MsgPtr hasta encontrar 0
+PrintMsg,       HEX 000
+
+PrintLoop,  LoadI   MsgPtr
+            Skipcond 400        			/ AC == 0? salta Jump PrintLoop → cae en PrintDone
+            Jump    DoPrint
+			
+            Jump    PrintDone
+
+DoPrint,    Output
+            Load    MsgPtr
+            Add     One
+            Store   MsgPtr
+			
+            Jump    PrintLoop
+
+PrintDone,  JumpI   PrintMsg
+				
 / FIN DEL JUEGO
-GameOverHalt,   Load    Score
-                Output                          / imprimir score (cantidad de minas reveladas)
+GameOverHalt,   Load    AddrDefeat			/ Cargar dirección de MsgDefeat en MsgPtr
+                Store   MsgPtr
+				
+                JnS     PrintMsg
+				
+                Load    Score
+                Output						/ imprimir score (cantidad de minas reveladas)
                 Halt
 
-WinGame,        Load    Score
-                Output                          / imprimir score (cantidad de minas totales)
+WinGame,        Load    AddrWin
+                Store   MsgPtr
+                JnS     PrintMsg
+				
+                Load    Score
+                Output						/ imprimir score (cantidad de minas totales)
                 Halt
  
  
@@ -484,13 +511,13 @@ Score,          HEX 000
 DisplayStart,   HEX F00		/ Display's first cell
 DisplayEnd,     HEX FFF		/ Display's last cell
 DisplayWidth,	HEX 010
-BoardStart,     HEX 25D     / [dirección donde empieza board data]
+BoardStart,     HEX 292    / [dirección donde empieza board data]
 
 ColorHidden,    HEX 4210	/ Dark Grey
 ColorFlag,      HEX 7FE0	/ Yellow
 ColorMine,      HEX 0000	/ Black
 
-ColorTableBase, HEX 246     / [dirección de Color0]
+ColorTableBase, HEX 257     / [dirección de Color0]
 
 Color0,         HEX 6318	/ Fondo, Light Grey
 Color1,         HEX 001F	/ 1, Blue
@@ -511,12 +538,51 @@ QueueHead,      HEX 000
 QueueTail,      HEX 000
 QueueBase,      HEX 400  
 
+AddrDefeat,     HEX 26B  
+AddrWin,        HEX 27B 
+MsgPtr,         HEX 000
+
+MsgDefeat, DEC 068		/ 'D'
+           DEC 101		/ 'e'
+           DEC 102		/ 'f'
+           DEC 101		/ 'e'
+           DEC 097		/ 'a'
+           DEC 116		/ 't'
+           DEC 033		/ '!'
+           DEC 010		/ [newline]
+           DEC 083		/ 'S'
+           DEC 099		/ 'c'
+           DEC 111		/ 'o'
+           DEC 114		/ 'r'
+           DEC 101		/ 'e'
+           DEC 058		/ ':'
+           DEC 032		/ [space]
+           DEC 000      / [null]
+		   
+MsgWin,    DEC 086		/ 'V'
+           DEC 105		/ 'i'
+           DEC 099		/ 'c'
+		   DEC 116		/ 't'
+		   DEC 111		/ 'o'
+		   DEC 114		/ 'r'
+		   DEC 121		/ 'y'
+           DEC 033		/ '!'
+           DEC 010		/ [newline]
+           DEC 083		/ 'S'
+           DEC 099		/ 'c'
+           DEC 111		/ 'o'
+           DEC 114		/ 'r'
+           DEC 101		/ 'e'
+           DEC 058		/ ':'
+           DEC 032		/ [space]
+           DEC 000      / [null]
+
 One,            HEX 001 
 Two,            HEX 002
 Fifteen,        HEX 00F
-TwoForty,       HEX 0F0  
+TwoForty,       HEX 0F0   
 	
 / ================================================================
-/ BOARD DATA (desde 0x1BA)
+/ BOARD DATA (desde 0x292)
 / Generado por Python. -1 = mina, 0-8 = vecinos con mina.
 / ================================================================
