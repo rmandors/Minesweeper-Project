@@ -1,0 +1,192 @@
+/ ================================================================
+/ TEMPLATE: TRIANGULO ISOSELES (equilatero aproximado en grilla)
+/ Pegar al final de base.mas
+/ ================================================================
+
+BuildPattern,    HEX 000
+                Clear
+                Store   TotalMines
+                Load    PT_TotalCells
+                Store   SafeCellsLeft
+                JnS     PT_ClearBoard
+
+                / top en (TopRow, TopCol), altura PT_Height
+                Load    PT_TopRow
+                Store   PT_CurrentRow
+                Clear
+                Store   PT_RowDepth
+
+PT_RowLoop,      Load    PT_RowDepth
+                / while RowDepth < Height
+                Subt    PT_Height
+                SkipCond 000
+                Jump    PT_Done
+
+                / en fila depth: col ini = TopCol-depth, col fin = TopCol+depth
+                Load    PT_TopCol
+                Subt    PT_RowDepth
+                Store   PT_RowColStart
+                Load    PT_TopCol
+                Add     PT_RowDepth
+                Store   PT_RowColEnd
+
+                Load    PT_RowColStart
+                Store   PT_CurrentCol
+
+PT_ColLoop,      Load    PT_CurrentCol
+                / while CurrentCol <= RowColEnd
+                Subt    PT_RowColEnd
+                Subt    One
+                SkipCond 000
+                Jump    PT_NextRow
+
+                / FillFlag=1 -> relleno, 0 -> borde
+                Load    PT_FillFlag
+                SkipCond 400
+                Jump    PT_DoSet
+
+                / borde: primera col, ultima col, o ultima fila
+                Load    PT_CurrentCol
+                Subt    PT_RowColStart
+                SkipCond 400
+                Jump    PT_CheckRightEdge
+                Jump    PT_DoSet
+
+PT_CheckRightEdge, Load   PT_CurrentCol
+                Subt    PT_RowColEnd
+                SkipCond 400
+                Jump    PT_CheckLastRow
+                Jump    PT_DoSet
+
+PT_CheckLastRow, Load    PT_RowDepth
+                Subt    PT_Height
+                Add     One
+                SkipCond 400
+                Jump    PT_SkipSet
+
+PT_DoSet,        Load    PT_CurrentRow      / set mine si dentro de 1..16
+                Subt    One
+                SkipCond 000
+                Jump    PT_CheckRMax
+                Jump    PT_SkipSet
+
+PT_CheckRMax,    Load    PT_CurrentRow
+                Subt    PT_16
+                SkipCond 800
+                Jump    PT_CheckCMin
+                Jump    PT_SkipSet
+
+PT_CheckCMin,    Load    PT_CurrentCol
+                Subt    One
+                SkipCond 000
+                Jump    PT_CheckCMax
+                Jump    PT_SkipSet
+
+PT_CheckCMax,    Load    PT_CurrentCol
+                Subt    PT_16
+                SkipCond 800
+                Jump    PT_SetMine
+                Jump    PT_SkipSet
+
+PT_SetMine,      Load    PT_CurrentRow
+                Store   PT_TargetRow
+                Load    PT_CurrentCol
+                Store   PT_TargetCol
+                JnS     PT_SetMineAtRC
+
+PT_SkipSet,      Load    PT_CurrentCol
+                Add     One
+                Store   PT_CurrentCol
+                Jump    PT_ColLoop
+
+PT_NextRow,      Load    PT_CurrentRow
+                Add     One
+                Store   PT_CurrentRow
+                Load    PT_RowDepth
+                Add     One
+                Store   PT_RowDepth
+                Jump    PT_RowLoop
+
+PT_Done,         JumpI   BuildPattern
+
+/ ---------------- helpers compartidos ----------------
+PT_ClearBoard,   HEX 000
+                Load    BoardStart
+                Store   PT_BoardCursor
+                Load    PT_TotalCells
+                Store   PT_CellsRemaining
+PT_ClearLoop,    Clear
+                StoreI  PT_BoardCursor
+                Load    PT_BoardCursor
+                Add     One
+                Store   PT_BoardCursor
+                Load    PT_CellsRemaining
+                Subt    One
+                Store   PT_CellsRemaining
+                SkipCond 400
+                Jump    PT_ClearLoop
+                JumpI   PT_ClearBoard
+
+PT_SetMineAtRC,  HEX 000
+                Load    PT_TargetRow
+                Subt    One
+                Store   PT_RowStepsRemaining
+                Clear
+                Store   PT_BoardOffset
+PT_RowAcc,       Load    PT_RowStepsRemaining
+                SkipCond 400
+                Jump    PT_RowAccDo
+                Jump    PT_OffsetReady
+PT_RowAccDo,     Load    PT_BoardOffset
+                Add     DisplayWidth
+                Store   PT_BoardOffset
+                Load    PT_RowStepsRemaining
+                Subt    One
+                Store   PT_RowStepsRemaining
+                Jump    PT_RowAcc
+PT_OffsetReady,  Load    PT_TargetCol
+                Subt    One
+                Add     PT_BoardOffset
+                Add     BoardStart
+                Store   PT_BoardCellAddress
+                LoadI   PT_BoardCellAddress
+                Add     One
+                SkipCond 400
+                Jump    PT_DoMine
+                JumpI   PT_SetMineAtRC
+PT_DoMine,       Load    PT_MineValue
+                StoreI  PT_BoardCellAddress
+                Load    TotalMines
+                Add     One
+                Store   TotalMines
+                Load    SafeCellsLeft
+                Subt    One
+                Store   SafeCellsLeft
+                JumpI   PT_SetMineAtRC
+
+/ ================================================================
+/ MODIFICAR LAS VARIABLES
+/ ================================================================
+PT_FillFlag,     DEC 0      / 1=relleno, 0=solo borde
+PT_TopRow,       DEC 2
+PT_TopCol,       DEC 8
+PT_Height,       DEC 5
+
+/ ---------------- trabajo ----------------
+PT_TargetRow,       HEX 000
+PT_TargetCol,       HEX 000
+PT_RowStepsRemaining,      HEX 000
+PT_BoardOffset,       HEX 000
+PT_BoardCellAddress,         HEX 000
+PT_CurrentRow,            HEX 000
+PT_CurrentCol,            HEX 000
+PT_RowColStart,       HEX 000
+PT_RowColEnd,         HEX 000
+PT_RowDepth,        HEX 000
+PT_BoardCursor,          HEX 000
+PT_CellsRemaining,        HEX 000
+
+/ ---------------- constantes ----------------
+PT_16,           DEC 16
+PT_TotalCells,          DEC 256
+PT_MineValue,     DEC -1

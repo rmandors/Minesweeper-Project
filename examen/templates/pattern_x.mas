@@ -1,0 +1,223 @@
+/ ================================================================
+/ TEMPLATE: X con grosor configurable
+/ Pegar al final de base.mas
+/ ================================================================
+
+BuildPattern,    HEX 000
+                Clear
+                Store   TotalMines
+                Load    PT_TotalCells
+                Store   SafeCellsLeft
+                JnS     PT_ClearBoard
+
+                / Convertir grosor visible a medio grosor interno.
+                / Ejemplo: 1 -> 0, 3 -> 1, 5 -> 2
+                / Recomendado: usar valores impares para simetria.
+                Load    PT_XThickness
+                Subt    One
+                Store   PT_ThicknessWork
+                Clear
+                Store   PT_HalfThick
+
+PT_ThicknessLoop,Load    PT_ThicknessWork
+                SkipCond 800
+                Jump    PT_ThicknessDone
+
+                Load    PT_ThicknessWork
+                Subt    Two
+                Store   PT_ThicknessWork
+
+                Load    PT_HalfThick
+                Add     One
+                Store   PT_HalfThick
+                Jump    PT_ThicknessLoop
+
+PT_ThicknessDone, Load    PT_XExtent
+                / Extent interno = XExtent - 1
+                Subt    One
+                Store   PT_ExtentMinusOne
+
+                Load    One
+                Store   PT_CurrentRow
+
+PT_RowLoop,      Load    PT_CurrentRow
+                / while CurrentRow <= 16
+                Subt    PT_17
+                SkipCond 000
+                Jump    PT_Done
+
+                Load    One
+                Store   PT_CurrentCol
+
+PT_ColLoop,      Load    PT_CurrentCol
+                / while CurrentCol <= 16
+                Subt    PT_17
+                SkipCond 000
+                Jump    PT_NextRow
+
+                / Limitar el alcance de la X alrededor del centro.
+                / Si Row/Col se salen de ese cuadrado, no se dibuja mina.
+                Load    PT_CurrentRow
+                Subt    PT_CenterRow
+                Store   PT_Difference
+                JnS     PT_AbsDiff
+                Store   PT_RowCenterDistance
+
+                Load    PT_RowCenterDistance
+                Subt    PT_ExtentMinusOne
+                Subt    One
+                SkipCond 000
+                Jump    PT_SkipMine
+
+                Load    PT_CurrentCol
+                Subt    PT_CenterCol
+                Store   PT_Difference
+                JnS     PT_AbsDiff
+                Store   PT_ColCenterDistance
+
+                Load    PT_ColCenterDistance
+                Subt    PT_ExtentMinusOne
+                Subt    One
+                SkipCond 000
+                Jump    PT_SkipMine
+
+                / d1 = abs(r-c)
+                Load    PT_CurrentRow
+                Subt    PT_CurrentCol
+                Store   PT_Difference
+                JnS     PT_AbsDiff
+                Store   PT_MainDiagonalDistance
+
+                / d2 = abs(r + c - 17)
+                Load    PT_CurrentRow
+                Add     PT_CurrentCol
+                Subt    PT_17
+                Store   PT_Difference
+                JnS     PT_AbsDiff
+                Store   PT_SecondaryDiagonalDistance
+
+                / si d1 <= HalfThick o d2 <= HalfThick -> mina
+                Load    PT_MainDiagonalDistance
+                Subt    PT_HalfThick
+                SkipCond 800
+                Jump    PT_SetMine
+
+                Load    PT_SecondaryDiagonalDistance
+                Subt    PT_HalfThick
+                SkipCond 800
+                Jump    PT_SetMine
+                Jump    PT_SkipMine
+
+PT_SetMine,      Load    PT_CurrentRow
+                Store   PT_TargetRow
+                Load    PT_CurrentCol
+                Store   PT_TargetCol
+                JnS     PT_SetMineAtRC
+
+PT_SkipMine,     Load    PT_CurrentCol
+                Add     One
+                Store   PT_CurrentCol
+                Jump    PT_ColLoop
+
+PT_NextRow,      Load    PT_CurrentRow
+                Add     One
+                Store   PT_CurrentRow
+                Jump    PT_RowLoop
+
+PT_Done,         JumpI   BuildPattern
+
+PT_AbsDiff,      HEX 000
+                Load    PT_Difference
+                SkipCond 000
+                Jump    PT_AbsDone
+                Clear
+                Subt    PT_Difference
+PT_AbsDone,      JumpI   PT_AbsDiff
+
+/ ---------------- helpers compartidos ----------------
+PT_ClearBoard,   HEX 000
+                Load    BoardStart
+                Store   PT_BoardCursor
+                Load    PT_TotalCells
+                Store   PT_CellsRemaining
+PT_ClearLoop,    Clear
+                StoreI  PT_BoardCursor
+                Load    PT_BoardCursor
+                Add     One
+                Store   PT_BoardCursor
+                Load    PT_CellsRemaining
+                Subt    One
+                Store   PT_CellsRemaining
+                SkipCond 400
+                Jump    PT_ClearLoop
+                JumpI   PT_ClearBoard
+
+PT_SetMineAtRC,  HEX 000
+                Load    PT_TargetRow
+                Subt    One
+                Store   PT_RowStepsRemaining
+                Clear
+                Store   PT_BoardOffset
+PT_RowAcc,       Load    PT_RowStepsRemaining
+                SkipCond 400
+                Jump    PT_RowAccDo
+                Jump    PT_OffsetReady
+PT_RowAccDo,     Load    PT_BoardOffset
+                Add     DisplayWidth
+                Store   PT_BoardOffset
+                Load    PT_RowStepsRemaining
+                Subt    One
+                Store   PT_RowStepsRemaining
+                Jump    PT_RowAcc
+PT_OffsetReady,  Load    PT_TargetCol
+                Subt    One
+                Add     PT_BoardOffset
+                Add     BoardStart
+                Store   PT_BoardCellAddress
+                LoadI   PT_BoardCellAddress
+                Add     One
+                SkipCond 400
+                Jump    PT_DoMine
+                JumpI   PT_SetMineAtRC
+PT_DoMine,       Load    PT_MineValue
+                StoreI  PT_BoardCellAddress
+                Load    TotalMines
+                Add     One
+                Store   TotalMines
+                Load    SafeCellsLeft
+                Subt    One
+                Store   SafeCellsLeft
+                JumpI   PT_SetMineAtRC
+
+/ ================================================================
+/ MODIFICAR LAS VARIABLES
+/ ================================================================
+PT_XThickness,   DEC 1      / grosor visible (1,3,5...)
+PT_XExtent,      DEC 8      / 1..8: 1=solo centro, 8=llega a los bordes
+
+/ ---------------- trabajo ----------------
+PT_TargetRow,       HEX 000
+PT_TargetCol,       HEX 000
+PT_RowStepsRemaining,      HEX 000
+PT_BoardOffset,       HEX 000
+PT_BoardCellAddress,         HEX 000
+PT_CurrentRow,            HEX 000
+PT_CurrentCol,            HEX 000
+PT_Difference,         HEX 000
+PT_MainDiagonalDistance,           HEX 000
+PT_SecondaryDiagonalDistance,           HEX 000
+PT_RowCenterDistance,      HEX 000
+PT_ColCenterDistance,      HEX 000
+PT_HalfThick,              HEX 000
+PT_ThicknessWork,          HEX 000
+PT_ExtentMinusOne,         HEX 000
+PT_BoardCursor,          HEX 000
+PT_CellsRemaining,        HEX 000
+
+/ ---------------- constantes ----------------
+PT_17,           DEC 17
+PT_16,           DEC 16
+PT_CenterRow,    DEC 8
+PT_CenterCol,    DEC 8
+PT_TotalCells,          DEC 256
+PT_MineValue,     DEC -1

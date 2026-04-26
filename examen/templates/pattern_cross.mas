@@ -1,0 +1,266 @@
+/ ================================================================
+/ TEMPLATE: CRUZ (vertical + horizontal) con grosor configurable
+/ Pegar al final de base.mas
+/ ================================================================
+
+BuildPattern,    HEX 000
+                Clear
+                Store   TotalMines
+                Load    PT_TotalCells
+                Store   SafeCellsLeft
+
+                JnS     PT_ClearBoard
+
+                / Convertir grosor visible a medio grosor interno.
+                / Ejemplo: 1 -> 0, 3 -> 1, 5 -> 2
+                / Recomendado: usar valores impares para simetria.
+                Load    PT_CrossThickness
+                Subt    One
+                Store   PT_ThicknessWork
+                Clear
+                Store   PT_HalfThick
+
+PT_ThicknessLoop,Load    PT_ThicknessWork
+                SkipCond 800
+                Jump    PT_ThicknessDone
+
+                Load    PT_ThicknessWork
+                Subt    Two
+                Store   PT_ThicknessWork
+
+                Load    PT_HalfThick
+                Add     One
+                Store   PT_HalfThick
+                Jump    PT_ThicknessLoop
+
+PT_ThicknessDone, Load    PT_CenterRow
+                / barra vertical: filas [CR-Arm, CR+Arm], cols [CC-HalfT, CC+HalfT]
+                Subt    PT_ArmLen
+                Store   PT_RowStart
+                Load    PT_CenterRow
+                Add     PT_ArmLen
+                Store   PT_RowEnd
+                Load    PT_CenterCol
+                Subt    PT_HalfThick
+                Store   PT_ColStart
+                Load    PT_CenterCol
+                Add     PT_HalfThick
+                Store   PT_ColEnd
+                JnS     PT_FillRectSafe
+
+                / barra horizontal: filas [CR-HalfT, CR+HalfT], cols [CC-Arm, CC+Arm]
+                Load    PT_CenterRow
+                Subt    PT_HalfThick
+                Store   PT_RowStart
+                Load    PT_CenterRow
+                Add     PT_HalfThick
+                Store   PT_RowEnd
+                Load    PT_CenterCol
+                Subt    PT_ArmLen
+                Store   PT_ColStart
+                Load    PT_CenterCol
+                Add     PT_ArmLen
+                Store   PT_ColEnd
+                JnS     PT_FillRectSafe
+
+                JumpI   BuildPattern
+
+/ ---------------- helpers compartidos ----------------
+PT_FillRectSafe, HEX 000
+                / clampa limites a 1..16
+                JnS     PT_ClampR1
+                JnS     PT_ClampR2
+                JnS     PT_ClampC1
+                JnS     PT_ClampC2
+
+                Load    PT_RowStart
+                Store   PT_CurrentRow
+
+PT_FRRowLoop,    Load    PT_CurrentRow
+                / while CurrentRow <= RowEnd
+                Load    PT_CurrentRow
+                Subt    PT_RowEnd
+                Subt    One
+                SkipCond 000
+                Jump    PT_FRDone
+
+                Load    PT_ColStart
+                Store   PT_CurrentCol
+
+PT_FRColLoop,    Load    PT_CurrentCol
+                / while CurrentCol <= ColEnd
+                Load    PT_CurrentCol
+                Subt    PT_ColEnd
+                Subt    One
+                SkipCond 000
+                Jump    PT_FRNextRow
+
+                / FillCross = 1: rellena toda la barra.
+                / FillCross = 0: solo borde de la barra.
+                Load    PT_FillCross
+                SkipCond 400
+                Jump    PT_FRSetMine
+
+                Load    PT_CurrentRow
+                Subt    PT_RowStart
+                SkipCond 400
+                Jump    PT_FRCheckRowEnd
+                Jump    PT_FRSetMine
+
+PT_FRCheckRowEnd,Load    PT_CurrentRow
+                Subt    PT_RowEnd
+                SkipCond 400
+                Jump    PT_FRCheckColStart
+                Jump    PT_FRSetMine
+
+PT_FRCheckColStart,Load  PT_CurrentCol
+                Subt    PT_ColStart
+                SkipCond 400
+                Jump    PT_FRCheckColEnd
+                Jump    PT_FRSetMine
+
+PT_FRCheckColEnd,Load    PT_CurrentCol
+                Subt    PT_ColEnd
+                SkipCond 400
+                Jump    PT_FRNextCol
+
+PT_FRSetMine,
+                Load    PT_CurrentRow
+                Store   PT_TargetRow
+                Load    PT_CurrentCol
+                Store   PT_TargetCol
+                JnS     PT_SetMineAtRC
+
+PT_FRNextCol,
+                Load    PT_CurrentCol
+                Add     One
+                Store   PT_CurrentCol
+                Jump    PT_FRColLoop
+
+PT_FRNextRow,    Load    PT_CurrentRow
+                Add     One
+                Store   PT_CurrentRow
+                Jump    PT_FRRowLoop
+
+PT_FRDone,       JumpI   PT_FillRectSafe
+
+PT_ClampR1,      HEX 000
+                Load    PT_RowStart
+                Subt    One
+                SkipCond 000
+                Jump    PT_ClampR1Done
+                Load    One
+                Store   PT_RowStart
+PT_ClampR1Done,  JumpI   PT_ClampR1
+
+PT_ClampR2,      HEX 000
+                Load    PT_RowEnd
+                Subt    PT_16
+                SkipCond 800
+                Jump    PT_ClampR2Done
+                Load    PT_16
+                Store   PT_RowEnd
+PT_ClampR2Done,  JumpI   PT_ClampR2
+
+PT_ClampC1,      HEX 000
+                Load    PT_ColStart
+                Subt    One
+                SkipCond 000
+                Jump    PT_ClampC1Done
+                Load    One
+                Store   PT_ColStart
+PT_ClampC1Done,  JumpI   PT_ClampC1
+
+PT_ClampC2,      HEX 000
+                Load    PT_ColEnd
+                Subt    PT_16
+                SkipCond 800
+                Jump    PT_ClampC2Done
+                Load    PT_16
+                Store   PT_ColEnd
+PT_ClampC2Done,  JumpI   PT_ClampC2
+
+PT_ClearBoard,   HEX 000
+                Load    BoardStart
+                Store   PT_BoardCursor
+                Load    PT_TotalCells
+                Store   PT_CellsRemaining
+PT_ClearLoop,    Clear
+                StoreI  PT_BoardCursor
+                Load    PT_BoardCursor
+                Add     One
+                Store   PT_BoardCursor
+                Load    PT_CellsRemaining
+                Subt    One
+                Store   PT_CellsRemaining
+                SkipCond 400
+                Jump    PT_ClearLoop
+                JumpI   PT_ClearBoard
+
+PT_SetMineAtRC,  HEX 000
+                Load    PT_TargetRow
+                Subt    One
+                Store   PT_RowStepsRemaining
+                Clear
+                Store   PT_BoardOffset
+PT_RowAcc,       Load    PT_RowStepsRemaining
+                SkipCond 400
+                Jump    PT_RowAccDo
+                Jump    PT_OffsetReady
+PT_RowAccDo,     Load    PT_BoardOffset
+                Add     DisplayWidth
+                Store   PT_BoardOffset
+                Load    PT_RowStepsRemaining
+                Subt    One
+                Store   PT_RowStepsRemaining
+                Jump    PT_RowAcc
+PT_OffsetReady,  Load    PT_TargetCol
+                Subt    One
+                Add     PT_BoardOffset
+                Add     BoardStart
+                Store   PT_BoardCellAddress
+                LoadI   PT_BoardCellAddress
+                Add     One
+                SkipCond 400
+                Jump    PT_DoMine
+                JumpI   PT_SetMineAtRC
+PT_DoMine,       Load    PT_MineValue
+                StoreI  PT_BoardCellAddress
+                Load    TotalMines
+                Add     One
+                Store   TotalMines
+                Load    SafeCellsLeft
+                Subt    One
+                Store   SafeCellsLeft
+                JumpI   PT_SetMineAtRC
+
+/ ================================================================
+/ MODIFICAR LAS VARIABLES
+/ ================================================================
+PT_CenterRow,    DEC 8
+PT_CenterCol,    DEC 8
+PT_ArmLen,       DEC 5
+PT_CrossThickness, DEC 3    / grosor visible (1,3,5...)
+PT_FillCross,    DEC 1      / 1=relleno, 0=solo borde
+
+/ ---------------- trabajo ----------------
+PT_TargetRow,       HEX 000
+PT_TargetCol,       HEX 000
+PT_RowStepsRemaining,      HEX 000
+PT_BoardOffset,       HEX 000
+PT_BoardCellAddress,         HEX 000
+PT_CurrentRow,            HEX 000
+PT_CurrentCol,            HEX 000
+PT_RowStart,           HEX 000
+PT_RowEnd,           HEX 000
+PT_ColStart,           HEX 000
+PT_ColEnd,           HEX 000
+PT_HalfThick,         HEX 000
+PT_ThicknessWork,     HEX 000
+PT_BoardCursor,          HEX 000
+PT_CellsRemaining,        HEX 000
+
+/ ---------------- constantes ----------------
+PT_16,           DEC 16
+PT_TotalCells,          DEC 256
+PT_MineValue,     DEC -1
