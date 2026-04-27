@@ -615,8 +615,8 @@ QueueHead,      HEX 000
 QueueTail,      HEX 000
 QueueBase,      HEX 400  
 
-AddrDefeat,     HEX 29D  
-AddrWin,        HEX 2AD 
+AddrDefeat,     HEX 2A0 
+AddrWin,        HEX 2B0 
 MsgPtr,         HEX 000
 
 MsgDefeat, DEC 068		/ 'D'
