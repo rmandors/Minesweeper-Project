@@ -932,10 +932,9 @@ BoardData, DEC 0
 / ================================================================
 / TEMPLATE: AJEDREZ POR BANDAS DE H FILAS
 / Cada H filas comparten el mismo offset antes de alternarlo.
-/ Con H=2: filas 1-2 usan OffsetOdd, filas 3-4 OffsetEven, etc.
 / ================================================================
 
-BuildPattern,    HEX 000
+BuildPattern,   HEX 000
                 Clear
                 Store   TotalMines
 
@@ -944,7 +943,7 @@ BuildPattern,    HEX 000
 
                 JnS     PT_ClearBoard
 
-                / ColumnStep = Gap + 1  (Gap=1 -> step=2)
+                / ColumnStep = Gap + 1 
                 Load    PT_Gap
                 Add     One
                 Store   PT_ColumnStep
@@ -952,12 +951,12 @@ BuildPattern,    HEX 000
                 Load    One
                 Store   PT_CurrentRow
 
-PT_RowLoop,      Load    PT_CurrentRow
+PT_RowLoop,     Load    PT_CurrentRow
                 Subt    PT_17
                 SkipCond 000            / skip si resultado < 0 (fila valida)
                 Jump    PT_Done
 
-                / --- Calcular groupIndex = floor((CurrentRow-1) / H) ---
+                / Calcular groupIndex = floor((CurrentRow-1) / H)
                 Load    PT_CurrentRow
                 Subt    One
                 Store   PT_GroupWork
@@ -971,7 +970,7 @@ PT_DivLoop,     Load    PT_GroupWork
                 Jump    PT_DivCont      / AC >= 0: puede restar, continuar
                 Jump    PT_DivDone      / AC < 0: terminado
 
-PT_DivCont,      Store   PT_GroupWork
+PT_DivCont,     Store   PT_GroupWork
                 Load    PT_GroupIndex
                 Add     One
                 Store   PT_GroupIndex
@@ -980,18 +979,18 @@ PT_DivCont,      Store   PT_GroupWork
 PT_DivDone,     Load    PT_GroupIndex
                 Store   PT_ParityWork
 
-PT_ParityLoop,   Load    PT_ParityWork
+PT_ParityLoop,  Load    PT_ParityWork
                 Subt    Two
                 SkipCond 000            / skip si AC < 0
                 Jump    PT_ParityNext
                 Jump    PT_ParityDone
 
-PT_ParityNext,   Store   PT_ParityWork
+PT_ParityNext,  Store   PT_ParityWork
                 Jump    PT_ParityLoop
 
-PT_ParityDone,   Load    PT_ParityWork
-                / 0 -> grupo par  -> OffsetOdd  (col 1)
-                / 1 -> grupo impar -> OffsetEven (col 2)
+PT_ParityDone,  Load    PT_ParityWork
+                / 0: grupo par  -> OffsetOdd (col 1)
+                / 1: grupo impar -> OffsetEven (col 2)
                 SkipCond 400
                 Jump    PT_UseEven
 
@@ -999,13 +998,13 @@ PT_ParityDone,   Load    PT_ParityWork
                 Store   PT_RowStartCol
                 Jump    PT_SetupCols
 
-PT_UseEven,      Load    PT_OffsetEven
+PT_UseEven,     Load    PT_OffsetEven
                 Store   PT_RowStartCol
 
-PT_SetupCols,    Load    PT_RowStartCol
+PT_SetupCols,   Load    PT_RowStartCol
                 Store   PT_CurrentCol
 
-PT_ColLoop,      Load    PT_CurrentCol
+PT_ColLoop,     Load    PT_CurrentCol
                 Subt    PT_17
                 SkipCond 000            / skip si CurrentCol <= 16
                 Jump    PT_NextRow
@@ -1016,33 +1015,33 @@ PT_ColLoop,      Load    PT_CurrentCol
                 Jump    PT_SetMine
                 Jump    PT_NextCol
 
-PT_SetMine,      Load    PT_CurrentRow
+PT_SetMine,     Load    PT_CurrentRow
                 Store   PT_TargetRow
                 Load    PT_CurrentCol
                 Store   PT_TargetCol
                 JnS     PT_SetMineAtRC
 
-PT_NextCol,      Load    PT_CurrentCol
+PT_NextCol,     Load    PT_CurrentCol
                 Add     PT_ColumnStep
                 Store   PT_CurrentCol
                 Jump    PT_ColLoop
 
-PT_NextRow,      Load    PT_CurrentRow
+PT_NextRow,     Load    PT_CurrentRow
                 Add     One
                 Store   PT_CurrentRow
                 Jump    PT_RowLoop
 
-PT_Done,         JumpI   BuildPattern
+PT_Done,        JumpI   BuildPattern
 
 
-PT_ClearBoard,   HEX 000
+PT_ClearBoard,  HEX 000
                 Load    BoardStart
                 Store   PT_BoardCursor
 
                 Load    PT_TotalCells
                 Store   PT_CellsRemaining
 
-PT_ClearLoop,    Clear
+PT_ClearLoop,   Clear
                 StoreI  PT_BoardCursor
 
                 Load    PT_BoardCursor
@@ -1057,7 +1056,7 @@ PT_ClearLoop,    Clear
 
                 JumpI   PT_ClearBoard
 
-PT_SetMineAtRC,  HEX 000
+PT_SetMineAtRC, HEX 000
                 Load    PT_TargetRow
                 Subt    One
                 Store   PT_RowStepsRemaining
@@ -1065,12 +1064,12 @@ PT_SetMineAtRC,  HEX 000
                 Clear
                 Store   PT_BoardOffset
 
-PT_RowAcc,       Load    PT_RowStepsRemaining
+PT_RowAcc,      Load    PT_RowStepsRemaining
                 SkipCond 400
                 Jump    PT_RowAccDo
                 Jump    PT_OffsetReady
 
-PT_RowAccDo,     Load    PT_BoardOffset
+PT_RowAccDo,    Load    PT_BoardOffset
                 Add     DisplayWidth
                 Store   PT_BoardOffset
 
@@ -1079,7 +1078,7 @@ PT_RowAccDo,     Load    PT_BoardOffset
                 Store   PT_RowStepsRemaining
                 Jump    PT_RowAcc
 
-PT_OffsetReady,  Load    PT_TargetCol
+PT_OffsetReady, Load    PT_TargetCol
                 Subt    One
                 Add     PT_BoardOffset
                 Add     BoardStart
@@ -1091,7 +1090,7 @@ PT_OffsetReady,  Load    PT_TargetCol
                 Jump    PT_DoMine
                 JumpI   PT_SetMineAtRC
 
-PT_DoMine,       Load    PT_MineValue
+PT_DoMine,      Load    PT_MineValue
                 StoreI  PT_BoardCellAddress
 
                 Load    TotalMines
@@ -1107,9 +1106,9 @@ PT_DoMine,       Load    PT_MineValue
 / ================================================================
 / CONFIGURACION
 / ================================================================
-PT_Gap,          DEC 1   / paso = Gap+1 = 2 (una de cada 2 columnas)
-PT_OffsetOdd,    DEC 1   / columna inicial grupos pares   (filas 1-2, 5-6...)
-PT_OffsetEven,   DEC 2   / columna inicial grupos impares (filas 3-4, 7-8...)
+PT_Gap,          DEC 1   / paso = Gap + 1
+PT_OffsetOdd,    DEC 1   / columna inicial grupos pares   
+PT_OffsetEven,   DEC 2   / columna inicial grupos impares 
 
 / Variables de trabajo 
 PT_TargetRow,           HEX 000
