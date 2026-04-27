@@ -1,0 +1,143 @@
+  Las dos funciones compartidas (base de todo)                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                            
+  Todos los patterns usan las mismas dos funciones helper. Entenderlas es entender el 80% de cualquier pattern.                                                                                                                                             
+                                                                                                                                                                                                                                                            
+  PT_ClearBoard                                             
+
+  Para qué: Antes de dibujar cualquier figura, limpia el tablero — escribe 0 en las 256 celdas de BoardData.
+  Por qué hace falta: El simulador no garantiza que la memoria empiece en cero, entonces hay que limpiarla manualmente antes de sembrar minas.
+  Cómo: Tiene un cursor (PT_BoardCursor) que empieza en BoardStart y avanza una celda por vuelta, escribiendo 0 con StoreI. Cuando PT_CellsRemaining llega a 0, terminó.
+
+  ---
+  PT_SetMineAtRC
+
+  Para qué: Recibe una fila y columna (1-based, en PT_TargetRow y PT_TargetCol) y pone -1 (mina) en la celda correcta de BoardData.
+  Por qué hace falta: El tablero es un array lineal en memoria. Para ir a la celda (fila, col) hay que calcular la dirección: BoardStart + (fila-1)*16 + (col-1). MARIE no puede multiplicar, entonces hace (fila-1)*16 sumando 16 repetidamente (fila-1)
+  veces.
+  Guarda de duplicado: Antes de escribir -1, lee si ya hay una mina ahí (LoadI + Add One + SkipCond 400). Si ya está, no vuelve a contar. Esto evita que TotalMines y SafeCellsLeft queden mal si dos regiones de la figura se solapan.
+
+  dirección = BoardStart + (fila-1)*16 + (col-1)
+  M[dirección] = -1
+  TotalMines++
+  SafeCellsLeft--
+
+  ---
+  Los patterns
+
+  pattern_rectangle — Rectángulo
+
+  Idea: Dibuja un rectángulo entre (RowStart, ColStart) y (RowEnd, ColEnd).
+
+  Recorre todas las celdas dentro de ese rango con dos loops anidados (fila exterior, columna interior). Para cada celda decide si poner mina:
+
+  - Si FillFlag = 1 → relleno completo, pone mina en toda celda del rango.
+  - Si FillFlag = 0 → solo borde: pone mina únicamente si la celda está en la primera fila, última fila, primera columna o última columna del rango. Eso se verifica con cuatro restas (Subt + SkipCond 400).
+
+  El truco del loop: MARIE no tiene <=. Para comprobar CurrentRow <= RowEnd usa CurrentRow - RowEnd - 1 < 0 (SkipCond 000). Si da negativo, la condición se cumple y sigue; si no, salió del rango.
+
+  Variables a modificar: PT_RowStart, PT_ColStart, PT_RowEnd, PT_ColEnd, PT_FillFlag.
+
+  ---
+  pattern_checker_step — Ajedrez con salto
+
+  Idea: Coloca minas en una cuadrícula tipo ajedrez, con espaciado configurable y offset que alterna entre filas pares e impares.
+
+  Recorre cada fila del 1 al 16. Para cada fila calcula el "offset" de inicio:
+  - Fila impar → empieza en columna PT_OffsetOdd
+  - Fila par → empieza en columna PT_OffsetEven
+
+  Luego avanza de columna en columna sumando PT_Gap + 1 cada vez.
+
+  Cómo detecta si la fila es par o impar: MARIE tampoco tiene mod. Entonces hace (fila - 1) y le resta 2 repetidamente hasta que quede 0 o 1. Si queda 0 → fila impar (OffsetOdd), si queda 1 → fila par (OffsetEven). Esto es el loop PT_ParityLoop.
+
+  Variables a modificar: PT_Gap (espaciado − 1), PT_OffsetOdd, PT_OffsetEven.
+
+  ---
+  pattern_cross — Cruz
+
+  Idea: Dibuja una cruz dibujando dos rectángulos rellenos (una barra vertical y una barra horizontal) que se superponen en el centro.
+
+  Primero calcula los límites de cada barra usando el centro y los parámetros:
+  - Barra vertical: filas [Centro - Brazo, Centro + Brazo], columnas [Centro - MedioGrosor, Centro + MedioGrosor]
+  - Barra horizontal: filas [Centro - MedioGrosor, Centro + MedioGrosor], columnas [Centro - Brazo, Centro + Brazo]
+
+  Llama a PT_FillRectSafe dos veces (una por barra). PT_SetMineAtRC se encarga de ignorar el solapamiento central sin double-count.
+
+  Para qué es el "medio grosor": El grosor que pones (PT_CrossThickness = 3) es el ancho visible. Pero para centrarlo simétricamente necesitás la mitad: con grosor 3, querés 1 celda a cada lado del centro. La conversión (grosor - 1) / 2 se hace con el
+  loop PT_ThicknessLoop que divide por 2 restando de a 2.
+
+  PT_FillRectSafe: Es igual al loop doble de rectangle, pero antes de entrar llama a PT_ClampR1/R2/C1/C2 para recortar los límites al rango 1..16. Esto es necesario porque si el brazo de la cruz excede el tablero, los límites calculados podrían quedar
+  fuera de 1-16.
+
+  PT_ClampR1/R2/C1/C2: Cada uno simplemente comprueba si el límite está fuera del rango y lo fuerza a 1 o 16 si hace falta.
+
+  Variables a modificar: PT_CenterRow, PT_CenterCol, PT_ArmLen, PT_CrossThickness, PT_FillCross.
+
+  ---
+  pattern_triangle_iso — Triángulo isósceles
+
+  Idea: Triángulo con el vértice arriba en (TopRow, TopCol) que crece simétricamente hacia abajo.
+
+  Usa un contador PT_RowDepth que empieza en 0 y llega hasta Height - 1. En la fila con profundidad d:
+  - columna izquierda = TopCol - d
+  - columna derecha = TopCol + d
+
+  Entonces la fila 0 tiene solo 1 celda, la fila 1 tiene 3, la fila 2 tiene 5, etc.
+
+  Si FillFlag = 0 (borde), solo pone mina si la celda es la columna más a la izquierda, la más a la derecha, o si es la última fila. Esto da el contorno del triángulo sin rellenar.
+
+  Antes de llamar a PT_SetMineAtRC verifica bounds manualmente (cuatro chequeos 1 <= r <= 16 y 1 <= c <= 16) porque TopCol - d puede dar un número fuera del tablero si el triángulo es grande.
+
+  Variables a modificar: PT_TopRow, PT_TopCol, PT_Height, PT_FillFlag.
+
+  ---
+  pattern_triangle_right — Triángulo rectángulo
+
+  Idea: Triángulo con el ángulo recto en (TopRow, LeftCol), que crece hacia abajo y hacia la derecha.
+
+  Similar al isósceles pero la fila de profundidad d va desde LeftCol hasta LeftCol + d. No hay expansión simétrica — solo crece hacia la derecha. La fila 0 tiene 1 celda, la fila 1 tiene 2, etc.
+
+  Usa PT_CurrentWidthIndex como contador dentro de la fila (de 0 a CurrentRowWidth - 1), que hace las veces de índice relativo. La columna real es LeftCol + widthIndex.
+
+  El check de borde (FillFlag = 0) detecta:
+  - Borde izquierdo: widthIndex == 0 (siempre la primera celda de la fila)
+  - Borde derecho: widthIndex == CurrentRowWidth - 1 (última celda de la fila)
+  - Borde inferior: RowDepth == Height - 1
+
+  Variables a modificar: PT_TopRow, PT_LeftCol, PT_TriangleHeight, PT_FillFlag.
+
+  ---
+  pattern_x — X diagonal
+
+  Idea: El más matemático. Recorre las 256 celdas del tablero y por cada una evalúa si está sobre una de las dos diagonales de la X.
+
+  La X en una grilla cuadrada de 16×16 tiene dos diagonales:
+  - Diagonal principal (↘): todos los puntos donde r == c. La distancia de (r, c) a esta diagonal es |r - c|.
+  - Diagonal secundaria (↙): todos los puntos donde r + c == 17. La distancia es |r + c - 17|.
+
+  Si |r - c| <= MedioGrosor o |r + c - 17| <= MedioGrosor → la celda está dentro del grosor de alguna de las dos diagonales → mina.
+
+  El PT_XExtent limita el alcance: solo se dibuja la X dentro de un cuadrado de Extent celdas alrededor del centro (8, 8). Celdas cuya distancia al centro supera el extent se saltan.
+
+  PT_AbsDiff: Helper que calcula valor absoluto. Lee PT_Difference y si es negativo devuelve 0 - PT_Difference, si no lo deja igual. Se usa tres veces (dos distancias diagonales + para el extent).
+
+  Variables a modificar: PT_XThickness (grosor visible, impar), PT_XExtent (1=solo centro, 8=llega a las esquinas), PT_CenterRow, PT_CenterCol.
+
+  ---
+  Resumen visual
+
+  ┌────────────────┬─────────────────────────────────┬──────────────────────────────────────────────────┐
+  │    Pattern     │             Figura              │                 Parámetros clave                 │
+  ├────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ rectangle      │ Rectángulo relleno o solo marco │ RowStart/End, ColStart/End, FillFlag             │
+  ├────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ checker_step   │ Cuadrícula tipo ajedrez         │ Gap, OffsetOdd, OffsetEven                       │
+  ├────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ cross          │ Cruz (+) con grosor             │ CenterRow/Col, ArmLen, CrossThickness, FillCross │
+  ├────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ triangle_iso   │ Triángulo isósceles ▲           │ TopRow, TopCol, Height, FillFlag                 │
+  ├────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ triangle_right │ Triángulo rectángulo ◺          │ TopRow, LeftCol, TriangleHeight, FillFlag        │
+  ├────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ pattern_x      │ X diagonal con grosor           │ XThickness, XExtent, CenterRow/Col               │
+  └────────────────┴─────────────────────────────────┴──────────────────────────────────────────────────┘
